@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS public.tasks (
   project_id BIGINT REFERENCES public.projects(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   description TEXT DEFAULT '',
+  start_date DATE,
   due_date DATE,
   is_complete BOOLEAN DEFAULT false,
   assigned_to TEXT DEFAULT '',
