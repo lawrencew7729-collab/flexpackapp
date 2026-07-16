@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlexPack Project Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Hide scrollbar for cleaner look */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .line-clamp-4 { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 overflow-hidden h-screen flex flex-col md:flex-row">
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-slate-800 text-white px-4 py-2 rounded-lg shadow-xl flex items-center z-50 text-sm transition-opacity duration-300 opacity-0 pointer-events-none">
+        <i data-lucide="check-circle-2" class="w-4 h-4 mr-2 text-green-400"></i>
+        <span id="toast-msg">Success</span>
+    </div>
+
+    <!-- ================= 1. LOGIN / REGISTER VIEW ================= -->
+    <div id="auth-view" class="absolute inset-0 flex items-center justify-center bg-slate-100 p-4 z-50">
+        <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg w-full max-w-sm text-center">
+            <div class="flex justify-center mb-4">
+                <img src="https://i.imgur.com/cHHfOpw.png" alt="FlexPack Logo" class="h-12 w-auto object-contain" onerror="this.onerror=null; this.outerHTML='<div class=\'font-extrabold text-3xl\'><span class=\'text-[#00AEEF]\'>Flex</span><span class=\'text-gray-400\'>Pack</span></div>'"/>
+            </div>
+            <p id="auth-title" class="text-slate-500 mb-6 text-xs">System Login</p>
+            
+            <form id="auth-form" onsubmit="handleAuth(event)" class="space-y-3">
+                <input type="text" id="auth-user" required placeholder="Username" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#00AEEF] outline-none text-sm"/>
+                <input type="password" id="auth-pass" required placeholder="Password" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#00AEEF] outline-none text-sm"/>
+                <button type="submit" id="auth-submit-btn" class="w-full bg-[#00AEEF] hover:bg-[#0095cc] text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">
+                    Login
+                </button>
+            </form>
+
+            <div class="mt-4 text-xs text-slate-500">
+                <p id="auth-toggle-text">New employee? <button onclick="toggleAuthMode()" class="text-[#00AEEF] font-semibold">Register here</button></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 2. MAIN APP VIEW ================= -->
+    <div id="main-app-view" class="hidden flex-1 h-full flex flex-col md:flex-row w-full">
+        
+        <!-- Mobile Header -->
+        <div class="md:hidden flex items-center justify-between p-3 bg-white border-b border-slate-200 z-20">
+            <img src="https://i.imgur.com/cHHfOpw.png" alt="FlexPack Logo" class="h-8 w-auto object-contain" onerror="this.onerror=null; this.outerHTML='<div class=\'font-extrabold text-lg\'><span class=\'text-[#00AEEF]\'>Flex</span><span class=\'text-gray-400\'>Pack</span></div>'"/>
+            <button onclick="toggleMobileMenu(true)" class="p-1.5 -mr-1 text-slate-600 hover:bg-slate-100 rounded-lg">
+                <i data-lucide="menu" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- Mobile Overlay -->
+        <div id="mobile-overlay" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden transition-opacity" onclick="toggleMobileMenu(false)"></div>
+
+        <!-- Sidebar -->
+        <div id="sidebar" class="fixed inset-y-0 left-0 z-40 w-56 bg-white border-r border-slate-200 flex flex-col shadow-xl md:shadow-sm transform -translate-x-full transition-transform duration-300 ease-in-out md:relative md:translate-x-0">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+                <img src="https://i.imgur.com/cHHfOpw.png" alt="FlexPack Logo" class="h-8 w-auto object-contain" onerror="this.onerror=null; this.outerHTML='<div class=\'font-extrabold text-xl\'><span class=\'text-[#00AEEF]\'>Flex</span><span class=\'text-gray-400\'>Pack</span></div>'"/>
+                <button class="md:hidden p-1 text-slate-500 hover:bg-slate-100 rounded-md" onclick="toggleMobileMenu(false)">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div class="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
+                <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="nav-btn w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4 mr-2"></i> Dashboard
+                </button>
+                <button onclick="switchTab('projects')" id="tab-btn-projects" class="nav-btn w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                    <i data-lucide="briefcase" class="w-4 h-4 mr-2"></i> Projects
+                </button>
+                <button onclick="switchTab('attention')" id="tab-btn-attention" class="nav-btn w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 mr-2"></i> Attention Summary
+                </button>
+                <button onclick="switchTab('report')" id="tab-btn-report" class="nav-btn w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                    <i data-lucide="file-text" class="w-4 h-4 mr-2"></i> Daily Report
+                </button>
+                
+                <!-- Admin Only Tab -->
+                <button onclick="switchTab('users')" id="tab-btn-users" class="nav-btn role-admin-only w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors hidden">
+                    <i data-lucide="users" class="w-4 h-4 mr-2"></i> User Mgmt
+                </button>
+            </div>
+
+            <div class="p-3 border-t border-slate-100">
+                <div class="text-[10px] text-slate-500 mb-2 px-1">
+                    Logged in as: <strong id="display-username" class="text-slate-800 capitalize"></strong>
+                </div>
+                <button onclick="doLogout()" class="w-full flex items-center px-2 py-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors text-xs font-medium">
+                    <i data-lucide="log-out" class="w-3 h-3 mr-2"></i> Logout
+                </button>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="flex-1 overflow-auto relative">
+            <div class="p-4 md:p-6 max-w-6xl mx-auto" id="content-container">
+                <!-- Content injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= SCRIPT ================= -->
+    <script>
+        // --- DATA STATE ---
+        let users = [
+            { username: 'admin', password: '8888', role: 'admin', status: 'approved' }
+        ];
+        let projects = []; 
+        let tasks = []; 
+        
+        let currentUser = null;
+        let authMode = 'login'; // login | register
+        let activeTab = 'dashboard';
+        let selectedProjectId = null;
+        let expandedTaskId = null;
+
+        // --- UTILS ---
+        function getDiffDays(dueDateStr) {
+            if (!dueDateStr) return 999;
+            const due = new Date(dueDateStr);
+            due.setHours(0, 0, 0, 0);
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            return Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = message;
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+
+        function getTaskStatusObj(task) {
+            if (task.isComplete) return { text: "Completed", color: "bg-green-100 text-green-800 border-green-200", icon: "check-circle-2" };
+            const diffDays = getDiffDays(task.dueDate);
+            if (diffDays < 0) return { text: "Overdue", color: "bg-red-100 text-red-800 border-red-200", icon: "alert-circle" };
+            if (diffDays <= 7) return { text: `Due in ${diffDays}d`, color: "bg-yellow-100 text-yellow-800 border-yellow-200", icon: "clock" };
+            return { text: "On Track", color: "bg-gray-100 text-gray-800 border-gray-200", icon: "clock" };
+        }
+
+        function toggleMobileMenu(show) {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobile-overlay');
+            if(show) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+            }
+        }
+
+        // --- AUTH ---
+        function toggleAuthMode() {
+            authMode = authMode === 'login' ? 'register' : 'login';
+            document.getElementById('auth-title').innerText = authMode === 'login' ? 'System Login' : 'Employee Registration';
+            document.getElementById('auth-submit-btn').innerText = authMode === 'login' ? 'Login' : 'Register Account';
+            document.getElementById('auth-toggle-text').innerHTML = authMode === 'login' 
+                ? 'New employee? <button type="button" onclick="toggleAuthMode()" class="text-[#00AEEF] font-semibold">Register here</button>'
+                : 'Already registered? <button type="button" onclick="toggleAuthMode()" class="text-[#00AEEF] font-semibold">Back to Login</button>';
+        }
+
+        function handleAuth(e) {
+            e.preventDefault();
+            const u = document.getElementById('auth-user').value.trim();
+            const p = document.getElementById('auth-pass').value.trim();
+            
+            if (authMode === 'login') {
+                const user = users.find(x => x.username === u && x.password === p);
+                if (!user) return alert("Invalid username or password.");
+                if (user.status !== 'approved') return alert("Your account is pending approval by Admin.");
+                
+                // Login Success
+                currentUser = user;
+                document.getElementById('auth-user').value = '';
+                document.getElementById('auth-pass').value = '';
+                document.getElementById('auth-view').classList.add('hidden');
+                document.getElementById('main-app-view').classList.remove('hidden');
+                document.getElementById('display-username').innerText = `${currentUser.username} (${currentUser.role})`;
+                
+                // CRUCIAL: Hide Admin Elements for Employees
+                document.querySelectorAll('.role-admin-only').forEach(el => {
+                    if(currentUser.role === 'admin') el.classList.remove('hidden');
+                    else el.classList.add('hidden');
+                });
+
+                switchTab('dashboard');
+            } else {
+                if (users.find(x => x.username === u)) return alert("Username already exists.");
+                users.push({ username: u, password: p, role: 'employee', status: 'pending' });
+                alert("Registration successful. Please wait for Admin to approve.");
+                toggleAuthMode();
+            }
+        }
+
+        function doLogout() {
+            currentUser = null;
+            document.getElementById('main-app-view').classList.add('hidden');
+            document.getElementById('auth-view').classList.remove('hidden');
+        }
+
+        // --- NAVIGATION & RENDERING ---
+        function switchTab(tab) {
+            if (tab === 'users' && currentUser.role !== 'admin') return; // Security check
+            activeTab = tab;
+            selectedProjectId = null;
+            toggleMobileMenu(false);
+            
+            // Update Nav Highlighting
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-sky-50', 'text-[#00AEEF]');
+                btn.classList.add('text-slate-600');
+            });
+            const activeBtn = document.getElementById(`tab-btn-${tab}`);
+            if(activeBtn) {
+                activeBtn.classList.add('bg-sky-50', 'text-[#00AEEF]');
+                activeBtn.classList.remove('text-slate-600');
+            }
+
+            renderContent();
+        }
+
+        function renderContent() {
+            const container = document.getElementById('content-container');
+            let html = '';
+
+            if (activeTab === 'dashboard') html = getDashboardHTML();
+            else if (activeTab === 'projects') html = getProjectsHTML();
+            else if (activeTab === 'attention') html = getAttentionHTML();
+            else if (activeTab === 'report') html = getReportHTML();
+            else if (activeTab === 'users') html = getUsersHTML();
+
+            container.innerHTML = html;
+            lucide.createIcons(); // Initialize icons in injected HTML
+        }
+
+        // --- DASHBOARD ---
+        function getDashboardHTML() {
+            let redCount = 0, yellowCount = 0;
+            tasks.forEach(t => {
+                if (!t.isComplete) {
+                    const days = getDiffDays(t.dueDate);
+                    if (days < 0) redCount++;
+                    else if (days <= 7) yellowCount++;
+                }
+            });
+            const pendingUsers = users.filter(u => u.status === 'pending').length;
+
+            return `
+                <div class="space-y-4 animate-in fade-in duration-300">
+                    <h2 class="text-lg font-bold text-slate-800 mb-4">System Overview</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div onclick="switchTab('projects')" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 border-t-4 border-t-[#00AEEF] cursor-pointer hover:shadow-md transition-all">
+                            <div class="text-slate-500 text-xs font-medium mb-1">Total Projects</div>
+                            <div class="text-3xl font-bold text-slate-800">${projects.length}</div>
+                        </div>
+                        ${currentUser.role === 'admin' ? `
+                        <div onclick="switchTab('users')" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 border-t-4 border-t-slate-400 cursor-pointer hover:shadow-md transition-all">
+                            <div class="text-slate-500 text-xs font-medium mb-1">Pending Users</div>
+                            <div class="text-3xl font-bold text-slate-600">${pendingUsers}</div>
+                        </div>` : ''}
+                    </div>
+                    <div class="pt-3 border-t border-slate-200">
+                        <h3 class="text-base font-bold text-slate-800 mb-3">Total Attention</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <button onclick="switchTab('attention')" class="bg-yellow-50 border border-yellow-200 p-4 rounded-xl text-left hover:bg-yellow-100 hover:border-yellow-300 transition-all flex flex-col items-start shadow-sm w-full">
+                                <div class="flex items-center text-yellow-800 text-xs font-semibold mb-1">
+                                    <i data-lucide="clock" class="w-4 h-4 mr-1.5"></i> Due in ≤ 7 Days
+                                </div>
+                                <div class="text-3xl font-bold text-yellow-600">${yellowCount}</div>
+                            </button>
+                            <button onclick="switchTab('attention')" class="bg-red-50 border border-red-200 p-4 rounded-xl text-left hover:bg-red-100 hover:border-red-300 transition-all flex flex-col items-start shadow-sm w-full">
+                                <div class="flex items-center text-red-800 text-xs font-semibold mb-1">
+                                    <i data-lucide="alert-circle" class="w-4 h-4 mr-1.5"></i> Overdue
+                                </div>
+                                <div class="text-3xl font-bold text-red-600">${redCount}</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        // --- ATTENTION SUMMARY ---
+        function getAttentionHTML() {
+            let attentionTasks = tasks.filter(t => !t.isComplete && getDiffDays(t.dueDate) <= 7);
+            attentionTasks.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+            let listHTML = '';
+            if(attentionTasks.length === 0) {
+                listHTML = `
+                    <div class="text-center py-8 bg-white rounded-xl border border-slate-200 text-slate-500 shadow-sm text-sm">
+                        <i data-lucide="check-circle-2" class="w-8 h-8 mx-auto text-green-400 mb-2"></i>
+                        Great job! No overdue tasks or tasks due within 7 days.
+                    </div>`;
+            } else {
+                listHTML = '<div class="space-y-3">';
+                attentionTasks.forEach(task => {
+                    const project = projects.find(p => p.id === task.projectId);
+                    const diffDays = getDiffDays(task.dueDate);
+                    const isOverdue = diffDays < 0;
+                    
+                    listHTML += `
+                        <div class="bg-white rounded-xl shadow-sm border-l-4 p-4 ${isOverdue ? 'border-l-red-500 border-t border-b border-r border-red-100' : 'border-l-yellow-400 border-t border-b border-r border-yellow-100'}">
+                            <div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                                Project: <span class="text-slate-800">${project?.name || 'Unknown'}</span>
+                            </div>
+                            <div class="text-sm font-bold text-slate-800 mb-2 whitespace-pre-wrap">${task.name}</div>
+                            <div class="flex items-center mt-1">
+                                <span class="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold ${isOverdue ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-800'}">
+                                    ${isOverdue 
+                                        ? `<i data-lucide="alert-circle" class="w-3 h-3 mr-1"></i> OVERDUE: ${task.dueDate}` 
+                                        : `<i data-lucide="clock" class="w-3 h-3 mr-1"></i> DEADLINE: ${task.dueDate} (${diffDays} days left)`}
+                                </span>
+                            </div>
+                        </div>`;
+                });
+                listHTML += '</div>';
+            }
+
+            return `
+                <div class="animate-in fade-in duration-300 max-w-3xl">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-slate-800">Attention Summary</h2>
+                        <span class="bg-slate-200 text-slate-700 py-0.5 px-2 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                            ${attentionTasks.length} Issues
+                        </span>
+                    </div>
+                    ${listHTML}
+                </div>`;
+        }
+
+        // --- USER MANAGEMENT (Admin) ---
+        function getUsersHTML() {
+            if (currentUser.role !== 'admin') return '';
+            
+            let tbody = '';
+            users.forEach(u => {
+                tbody += `
+                    <tr class="hover:bg-slate-50 border-b border-slate-100">
+                        <td class="px-4 py-3 font-medium text-slate-800">${u.username}</td>
+                        <td class="px-4 py-3 capitalize text-slate-600">${u.role}</td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${u.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                                ${u.status}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-right space-x-1">
+                            ${u.status === 'pending' ? `
+                                <button onclick="actUser('${u.username}', 'approve')" class="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 shadow-sm">Approve</button>
+                            ` : ''}
+                            <button onclick="actUser('${u.username}', 'edit')" class="bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs hover:bg-slate-300 shadow-sm">Edit</button>
+                            <button onclick="actUser('${u.username}', 'delete')" class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs hover:bg-red-200 shadow-sm">Delete</button>
+                        </td>
+                    </tr>`;
+            });
+
+            return `
+                <div class="animate-in fade-in duration-300">
+                    <h2 class="text-lg font-bold text-slate-800 mb-4">User Management</h2>
+                    
+                    <!-- Admin Add User Form -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-4">
+                        <h3 class="text-xs font-bold text-slate-600 uppercase mb-2">Add New User</h3>
+                        <form onsubmit="actUser(null, 'add', event)" class="flex flex-col md:flex-row gap-2">
+                            <input type="text" id="new-u-name" required placeholder="Username" class="flex-1 px-3 py-1.5 border rounded text-xs outline-none focus:ring-1 focus:ring-[#00AEEF]">
+                            <input type="password" id="new-u-pass" required placeholder="Password" class="flex-1 px-3 py-1.5 border rounded text-xs outline-none focus:ring-1 focus:ring-[#00AEEF]">
+                            <select id="new-u-role" class="flex-1 px-3 py-1.5 border rounded text-xs outline-none bg-white">
+                                <option value="employee">Employee</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                            <button type="submit" class="bg-[#00AEEF] text-white px-4 py-1.5 rounded hover:bg-[#0095cc] text-xs font-bold shadow-sm">Add</button>
+                        </form>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs min-w-[500px]">
+                                <thead class="bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-4 py-3 font-semibold text-slate-600">Username</th>
+                                        <th class="px-4 py-3 font-semibold text-slate-600">Role</th>
+                                        <th class="px-4 py-3 font-semibold text-slate-600">Status</th>
+                                        <th class="px-4 py-3 font-semibold text-slate-600 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${tbody}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        function actUser(username, action, e) {
+            if(e) e.preventDefault();
+            if(action === 'approve') {
+                const u = users.find(x => x.username === username);
+                if(u) u.status = 'approved';
+                showToast(`User ${username} approved.`);
+            } else if (action === 'delete') {
+                if(username === 'admin') return alert("Cannot delete the default admin account.");
+                if(confirm(`Are you sure you want to delete ${username}?`)) {
+                    users = users.filter(x => x.username !== username);
+                    showToast(`User ${username} deleted.`);
+                }
+            } else if (action === 'edit') {
+                if(username === 'admin') return alert("Cannot edit the default admin account from here.");
+                const newRole = prompt(`Edit role for ${username}. Type 'admin' or 'employee':`, "employee");
+                if(newRole === 'admin' || newRole === 'employee') {
+                    const u = users.find(x => x.username === username);
+                    if(u) u.role = newRole;
+                    showToast(`User ${username} updated to ${newRole}.`);
+                } else if(newRole !== null) {
+                    alert("Invalid role entered.");
+                }
+            } else if (action === 'add') {
+                const n = document.getElementById('new-u-name').value.trim();
+                const p = document.getElementById('new-u-pass').value.trim();
+                const r = document.getElementById('new-u-role').value;
+                if(users.find(x => x.username === n)) return alert("Username already exists.");
+                users.push({ username: n, password: p, role: r, status: 'approved' });
+                showToast(`User ${n} added successfully.`);
+            }
+            renderContent();
+        }
+
+        // --- PROJECTS & TIMELINE ---
+        function getProjectsHTML() {
+            if (!selectedProjectId) {
+                // List View
+                let listHTML = '';
+                if(projects.length === 0) {
+                    listHTML = `<div class="text-center py-10 bg-white rounded-xl border border-dashed border-slate-300 text-slate-500 text-sm">No projects created yet. Create one to start adding timelines.</div>`;
+                } else {
+                    listHTML = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">';
+                    projects.forEach(p => {
+                        const tCount = tasks.filter(t => t.projectId === p.id).length;
+                        listHTML += `
+                            <div onclick="openProject(${p.id})" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md cursor-pointer transition-all border-l-4 border-l-[#00AEEF]">
+                                <h3 class="font-bold text-sm mb-1 text-slate-800 break-words">${p.name}</h3>
+                                <p class="text-[10px] text-slate-500">Created by: ${p.createdBy}</p>
+                                <p class="text-[10px] text-slate-500 mt-0.5">Tasks: ${tCount}</p>
+                            </div>`;
+                    });
+                    listHTML += '</div>';
+                }
+
+                return `
+                    <div class="animate-in fade-in duration-300">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
+                            <h2 class="text-lg font-bold text-slate-800">Projects</h2>
+                            <form onsubmit="actProject('create', event)" class="flex w-full md:w-auto gap-2">
+                                <input type="text" id="new-p-name" required placeholder="New Project Name..." class="px-3 py-1.5 border rounded-lg focus:ring-2 focus:ring-[#00AEEF] outline-none flex-1 min-w-[180px] text-sm"/>
+                                <button type="submit" class="bg-[#00AEEF] text-white px-3 py-1.5 rounded-lg hover:bg-[#0095cc] flex items-center justify-center font-medium shadow-sm text-sm">
+                                    <i data-lucide="plus" class="w-4 h-4 md:mr-1"></i><span class="hidden md:inline">Create</span>
+                                </button>
+                            </form>
+                        </div>
+                        ${listHTML}
+                    </div>`;
+            } else {
+                // Timeline View
+                const proj = projects.find(p => p.id === selectedProjectId);
+                const pTasks = tasks.filter(t => t.projectId === selectedProjectId);
+                
+                let tHTML = '';
+                if(pTasks.length === 0) {
+                    tHTML = `<div class="p-6 text-center text-slate-500 bg-slate-50/50 text-xs">Timeline is blank. Add tasks below.</div>`;
+                } else {
+                    pTasks.forEach(task => {
+                        const status = getTaskStatusObj(task);
+                        const isExpanded = expandedTaskId === task.id;
+                        tHTML += `
+                            <div class="p-3 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0">
+                                <div class="flex items-start gap-2">
+                                    <input type="checkbox" ${task.isComplete ? 'checked' : ''} onchange="actTask('toggle', ${task.id})" class="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#00AEEF] cursor-pointer shrink-0"/>
+                                    <div class="flex-1 space-y-1.5">
+                                        <div>
+                                            <div onclick="expandTask(${task.id})" class="text-sm font-bold text-slate-800 cursor-pointer whitespace-pre-wrap ${!isExpanded ? 'line-clamp-4' : ''} ${task.isComplete ? 'line-through text-slate-400' : ''}">
+                                                ${task.name}
+                                            </div>
+                                            <div class="text-[10px] text-slate-500 mt-0.5 font-medium">
+                                                ${task.startDate || 'N/A'} — ${task.dueDate || 'N/A'}
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-col md:flex-row gap-1.5 md:items-center">
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border w-fit ${status.color}">
+                                                <i data-lucide="${status.icon}" class="w-3 h-3 mr-0.5"></i> ${status.text}
+                                            </span>
+                                            <input type="text" value="${task.remark}" onchange="actTask('remark', ${task.id}, this.value)" 
+                                                ${currentUser.role !== 'admin' ? 'disabled' : ''}
+                                                placeholder="${currentUser.role === 'admin' ? 'Admin remarks (type here)...' : 'No remarks'}"
+                                                class="flex-1 px-2 py-1 border rounded text-[10px] transition-colors ${currentUser.role === 'admin' ? 'bg-sky-50 border-sky-200 focus:ring-1 focus:ring-sky-400 text-sky-900' : 'bg-transparent border-transparent text-slate-500 px-0'}"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>`;
+                    });
+                }
+
+                return `
+                    <div class="animate-in fade-in duration-300">
+                        <div class="flex items-center mb-4">
+                            <button onclick="openProject(null)" class="mr-3 p-1.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600">
+                                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                            </button>
+                            <div class="flex-1 overflow-hidden">
+                                <h2 class="text-base md:text-lg font-bold text-slate-800 truncate">${proj.name}</h2>
+                                <p class="text-xs text-slate-500">Timeline & Tasks</p>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+                            ${tHTML}
+                            <div class="p-3 bg-slate-50 border-t border-slate-200 space-y-2">
+                                <textarea id="new-t-name" rows="2" placeholder="New Task Description..." class="w-full px-2.5 py-1.5 border rounded-lg focus:ring-2 focus:ring-[#00AEEF] outline-none resize-y text-sm"></textarea>
+                                <div class="flex gap-2">
+                                    <div class="flex-1">
+                                        <label class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Start Date</label>
+                                        <input type="date" id="new-t-start" class="w-full px-2 py-1 border rounded text-[10px] text-slate-600 outline-none focus:border-[#00AEEF]" />
+                                    </div>
+                                    <div class="flex-1">
+                                        <label class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">End Date</label>
+                                        <input type="date" id="new-t-end" class="w-full px-2 py-1 border rounded text-[10px] text-slate-600 outline-none focus:border-[#00AEEF]" />
+                                    </div>
+                                </div>
+                                <button onclick="actTask('add')" class="bg-[#00AEEF] text-white px-3 py-1.5 rounded-lg hover:bg-[#0095cc] w-full font-medium shadow-sm text-xs mt-1">
+                                    + Add Task
+                                </button>
+                            </div>
+                        </div>
+                    </div>`;
+            }
+        }
+
+        function actProject(action, e) {
+            e.preventDefault();
+            const input = document.getElementById('new-p-name');
+            const val = input.value.trim();
+            if(!val) return;
+            projects.push({ id: Date.now(), name: val, createdBy: currentUser.username });
+            input.value = '';
+            showToast("Project created.");
+            renderContent();
+        }
+
+        function openProject(id) {
+            selectedProjectId = id;
+            expandedTaskId = null;
+            renderContent();
+        }
+
+        function expandTask(id) {
+            expandedTaskId = expandedTaskId === id ? null : id;
+            renderContent();
+        }
+
+        function actTask(action, id, val) {
+            if (action === 'add') {
+                const n = document.getElementById('new-t-name').value.trim();
+                const s = document.getElementById('new-t-start').value;
+                const e = document.getElementById('new-t-end').value;
+                if(!n || !s || !e) return alert("Please fill description and both dates.");
+                tasks.push({ id: Date.now(), projectId: selectedProjectId, name: n, startDate: s, dueDate: e, isComplete: false, remark: '' });
+                renderContent();
+            } else if (action === 'toggle') {
+                const t = tasks.find(x => x.id === id);
+                if(t) t.isComplete = !t.isComplete;
+                showToast("Task status updated.");
+                renderContent();
+            } else if (action === 'remark') {
+                const t = tasks.find(x => x.id === id);
+                if(t) t.remark = val;
+            }
+        }
+
+        // --- DAILY REPORT ---
+        function getReportHTML() {
+            let pOptions = '<option value="">-- Select Project --</option>';
+            projects.forEach(p => pOptions += `<option value="${p.id}">${p.name}</option>`);
+
+            return `
+                <div class="max-w-xl animate-in fade-in duration-300">
+                    <h2 class="text-lg font-bold text-slate-800 mb-4">Daily Activity Report</h2>
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 md:p-6">
+                        <form onsubmit="submitReport(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Project Selector</label>
+                                <select required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00AEEF] outline-none bg-white text-sm">
+                                    ${pOptions}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Location</label>
+                                <input type="text" required placeholder="e.g. Factory Site A" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00AEEF] outline-none text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Work Done Today</label>
+                                <textarea required rows="3" placeholder="Describe progress..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00AEEF] outline-none text-sm"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Photo Evidence</label>
+                                <input type="file" accept="image/*" class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-sm" />
+                            </div>
+                            <button type="submit" class="w-full flex justify-center items-center bg-[#00AEEF] hover:bg-[#0095cc] text-white font-bold py-2 px-4 rounded-lg shadow-sm text-sm">
+                                <i data-lucide="send" class="w-4 h-4 mr-2"></i> Submit to Boss
+                            </button>
+                        </form>
+                    </div>
+                </div>`;
+        }
+
+        function submitReport(e) {
+            e.preventDefault();
+            showToast("Report and photos sent to Admin successfully!");
+            e.target.reset();
+        }
+
+        // Init icons on load
+        lucide.createIcons();
+    </script>
+</body>
+</html>
