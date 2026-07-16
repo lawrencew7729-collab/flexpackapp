@@ -700,6 +700,11 @@
                 showToast('Task added!');
                 await selectProject(selectedProjectId);
             } catch (err) {
+                if (err.message && err.message.includes('start_date')) {
+                    hideLoading();
+                    alert('⚠️ Database column missing!\n\nPlease run this SQL in Supabase SQL Editor:\n\nALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS start_date DATE;\n\nOr click "Skip Start Date" and try again without it.');
+                    return;
+                }
                 showToast('Error: ' + err.message, true);
             }
             hideLoading();
