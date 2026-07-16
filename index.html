@@ -33,7 +33,7 @@
 
     <!-- Toast Notification -->
     <div id="toast" class="fixed bottom-6 right-6 bg-slate-800 text-white px-4 py-2 rounded-lg shadow-xl flex items-center z-50 text-sm transition-opacity duration-300 opacity-0 pointer-events-none">
-        <i data-lucide="check-circle-2" class="w-4 h-4 mr-2 text-green-400"></i>
+        <span id="toast-icon-wrap" class="w-4 h-4 mr-2 flex items-center"></span>
         <span id="toast-msg">Success</span>
     </div>
 
@@ -152,22 +152,22 @@
             return Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
         }
 
+        // ============================================
+        // TOAST — uses inline SVG (avoid Lucide race)
+        // ============================================
+        const TOAST_ICONS = {
+            success: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-green-400"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+            error: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-red-400"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+        };
+
         function showToast(message, isError = false) {
             const toast = document.getElementById('toast');
-            const icon = toast.querySelector('i');
+            const wrap = document.getElementById('toast-icon-wrap');
             const msg = document.getElementById('toast-msg');
+            if (!toast || !msg) return;
             msg.innerText = message;
-            if (isError) {
-                icon.setAttribute('data-lucide', 'alert-circle');
-                icon.classList.remove('text-green-400');
-                icon.classList.add('text-red-400');
-            } else {
-                icon.setAttribute('data-lucide', 'check-circle-2');
-                icon.classList.remove('text-red-400');
-                icon.classList.add('text-green-400');
-            }
+            if (wrap) wrap.innerHTML = isError ? TOAST_ICONS.error : TOAST_ICONS.success;
             toast.classList.remove('opacity-0', 'pointer-events-none');
-            lucide.createIcons();
             setTimeout(() => {
                 toast.classList.add('opacity-0', 'pointer-events-none');
             }, 3000);
