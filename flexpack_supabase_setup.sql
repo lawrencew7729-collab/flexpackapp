@@ -41,8 +41,12 @@ CREATE TABLE IF NOT EXISTS public.daily_reports (
   id BIGSERIAL PRIMARY KEY,
   username TEXT NOT NULL,
   project_id BIGINT REFERENCES public.projects(id) ON DELETE SET NULL,
+  company TEXT DEFAULT '',
+  guests INTEGER DEFAULT 0,
   report_date DATE NOT NULL DEFAULT CURRENT_DATE,
   content TEXT DEFAULT '',
+  attachment_url TEXT DEFAULT '',
+  attachment_name TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
