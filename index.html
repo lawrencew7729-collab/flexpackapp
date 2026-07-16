@@ -82,24 +82,32 @@
                 </button>
             </div>
 
-            <div class="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
-                <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="nav-btn w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+            <div class="flex-1 py-3 px-2 space-y-1 overflow-y-auto" id="sidebar-nav">
+                <!-- Employee nav: default shown, admin toggles -->
+                <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="nav-btn w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors role-employee-nav">
                     <i data-lucide="layout-dashboard" class="w-4 h-4 mr-2"></i> Dashboard
                 </button>
                 <button onclick="switchTab('projects')" id="tab-btn-projects" class="nav-btn w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
                     <i data-lucide="briefcase" class="w-4 h-4 mr-2"></i> Projects
                 </button>
-                <button onclick="switchTab('attention')" id="tab-btn-attention" class="nav-btn w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                <button onclick="switchTab('attention')" id="tab-btn-attention" class="nav-btn w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors role-employee-nav">
                     <i data-lucide="alert-triangle" class="w-4 h-4 mr-2"></i> Attention Summary
                 </button>
                 <button onclick="switchTab('report')" id="tab-btn-report" class="nav-btn w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
                     <i data-lucide="file-text" class="w-4 h-4 mr-2"></i> Daily Report
                 </button>
-                <button onclick="switchTab('photos')" id="tab-btn-photos" class="nav-btn w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                <button onclick="switchTab('photos')" id="tab-btn-photos" class="nav-btn w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors role-employee-nav">
                     <i data-lucide="camera" class="w-4 h-4 mr-2"></i> Photos
                 </button>
-                <button onclick="switchTab('users')" id="tab-btn-users" class="nav-btn role-admin-only w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors hidden">
-                    <i data-lucide="users" class="w-4 h-4 mr-2"></i> User Mgmt
+                <!-- Admin-only nav -->
+                <button onclick="switchTab('employees')" id="tab-btn-employees" class="nav-btn role-admin-only w-full hidden items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                    <i data-lucide="users" class="w-4 h-4 mr-2"></i> Employees
+                </button>
+                <button onclick="switchTab('admin-reports')" id="tab-btn-admin-reports" class="nav-btn role-admin-only w-full hidden items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                    <i data-lucide="clipboard-list" class="w-4 h-4 mr-2"></i> All Reports
+                </button>
+                <button onclick="switchTab('users')" id="tab-btn-users" class="nav-btn role-admin-only w-full hidden items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                    <i data-lucide="shield" class="w-4 h-4 mr-2"></i> User Mgmt
                 </button>
             </div>
 
@@ -294,13 +302,18 @@
                     document.getElementById('main-app-view').classList.remove('hidden');
                     document.getElementById('display-username').innerText = `${currentUser.username} (${currentUser.role})`;
 
+                    const isAdmin = currentUser.role === 'admin';
                     document.querySelectorAll('.role-admin-only').forEach(el => {
-                        if (currentUser.role === 'admin') el.classList.remove('hidden');
-                        else el.classList.add('hidden');
+                        el.classList.toggle('hidden', !isAdmin);
+                        el.classList.toggle('flex', isAdmin);
+                    });
+                    document.querySelectorAll('.role-employee-nav').forEach(el => {
+                        el.classList.toggle('hidden', isAdmin);
                     });
 
+                    if (isAdmin) activeTab = 'employees';
                     hideLoading();
-                    await switchTab('dashboard');
+                    await switchTab(activeTab);
                 } else {
                     // Register
                     const { data: existing } = await sb.from('users').select('id').eq('username', u).limit(1);
@@ -338,10 +351,13 @@
         // ============================================
         // NAVIGATION & RENDERING
         // ============================================
+        let selectedEmployee = null;
+
         async function switchTab(tab) {
             if (tab === 'users' && (!currentUser || currentUser.role !== 'admin')) return;
             activeTab = tab;
             selectedProjectId = null;
+            selectedEmployee = null;
             toggleMobileMenu(false);
 
             document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -353,42 +369,291 @@
                 activeBtn.classList.add('bg-sky-50', 'text-[#00AEEF]');
                 activeBtn.classList.remove('text-slate-600');
             }
-
             await renderContent();
         }
 
         async function renderContent() {
             const container = document.getElementById('content-container');
             showLoading('Loading...');
-
             try {
                 let html = '';
-                if (activeTab === 'dashboard') html = await getDashboardHTML();
-                else if (activeTab === 'projects') html = await getProjectsHTML();
-                else if (activeTab === 'attention') html = await getAttentionHTML();
-                else if (activeTab === 'report') html = await getReportHTML();
-                else if (activeTab === 'photos') html = await getPhotosHTML();
-                else if (activeTab === 'users') html = await getUsersHTML();
-
+                if (currentUser.role === 'admin') {
+                    if (activeTab === 'employees') html = await getEmployeesDashboardHTML();
+                    else if (activeTab === 'admin-reports') html = await getAdminReportsHTML();
+                    else if (activeTab === 'projects') html = await getProjectsHTML();
+                    else if (activeTab === 'report') html = await getAdminReportsHTML();
+                    else if (activeTab === 'users') html = await getUsersHTML();
+                    else html = await getEmployeesDashboardHTML();
+                } else {
+                    if (activeTab === 'dashboard') html = await getDashboardHTML();
+                    else if (activeTab === 'projects') html = await getProjectsHTML();
+                    else if (activeTab === 'attention') html = await getAttentionHTML();
+                    else if (activeTab === 'report') html = await getReportHTML();
+                    else if (activeTab === 'photos') html = await getPhotosHTML();
+                    else html = await getDashboardHTML();
+                }
                 container.innerHTML = html;
                 lucide.createIcons();
             } catch (err) {
                 container.innerHTML = `<div class="p-8 text-center text-red-500"><i data-lucide="alert-triangle" class="w-8 h-8 mx-auto mb-2"></i><p>Error loading: ${err.message}</p></div>`;
                 lucide.createIcons();
             }
-
             hideLoading();
         }
 
         // ============================================
-        // DASHBOARD
+        // ADMIN: EMPLOYEES DASHBOARD
+        // ============================================
+        async function getEmployeesDashboardHTML() {
+            const { data: employees } = await sb.from('users')
+                .select('*')
+                .eq('role', 'employee')
+                .eq('status', 'approved')
+                .order('username', { ascending: true });
+
+            if (!employees || employees.length === 0) {
+                return `<div class="text-center py-12 text-slate-400"><i data-lucide="users" class="w-12 h-12 mx-auto mb-3 opacity-50"></i><p>No approved employees yet.</p></div>`;
+            }
+
+            let cardsHTML = '';
+            for (const emp of employees) {
+                const { count: projCount } = await sb.from('projects')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('created_by', emp.username);
+
+                const { data: empTasks } = await sb.from('tasks')
+                    .select('id, is_complete, due_date, projects!inner(name)')
+                    .eq('is_complete', false)
+                    .eq('projects.created_by', emp.username);
+
+                let overdue = 0, dueSoon = 0;
+                (empTasks || []).forEach(t => {
+                    const d = getDiffDays(t.due_date);
+                    if (d < 0) overdue++;
+                    else if (d <= 7) dueSoon++;
+                });
+
+                const { data: empReports } = await sb.from('daily_reports')
+                    .select('id, content, report_date, company')
+                    .eq('username', emp.username)
+                    .order('report_date', { ascending: false })
+                    .limit(2);
+
+                const lastReport = empReports && empReports.length > 0
+                    ? `<div class="text-[10px] text-slate-400 mt-1 truncate">📋 ${empReports[0].content.substring(0, 40)}${empReports[0].content.length > 40 ? '…' : ''} <span class="text-slate-300">${formatDate(empReports[0].report_date)}</span></div>`
+                    : '';
+
+                cardsHTML += `
+                    <div onclick="selectEmployee('${emp.username}')" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-all cursor-pointer border-t-4 border-t-[#00AEEF]">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="w-10 h-10 rounded-full bg-[#00AEEF]/10 flex items-center justify-center text-[#00AEEF] font-bold text-sm">${emp.username.charAt(0).toUpperCase()}</div>
+                            <div>
+                                <h3 class="font-bold text-slate-800 capitalize">${emp.username}</h3>
+                                <span class="text-[10px] text-slate-400">${projCount} projects</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 mb-2">
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">🟡 ${dueSoon} due soon</span>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700">🔴 ${overdue} overdue</span>
+                        </div>
+                        ${lastReport}
+                    </div>`;
+            }
+
+            return `
+                <div class="space-y-4 animate-fade-in">
+                    <h2 class="text-lg font-bold text-slate-800">👥 Employees Overview</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        ${cardsHTML}
+                    </div>
+                </div>`;
+        }
+
+        // ============================================
+        // ADMIN: EMPLOYEE DRILL-DOWN
+        // ============================================
+        async function selectEmployee(username) {
+            selectedEmployee = username;
+            const container = document.getElementById('content-container');
+            showLoading(`Loading ${username}...`);
+            try {
+                const { data: projects } = await sb.from('projects')
+                    .select('*')
+                    .eq('created_by', username)
+                    .order('created_at', { ascending: false });
+
+                const { data: tasks } = await sb.from('tasks')
+                    .select('*, projects!inner(name)')
+                    .eq('is_complete', false)
+                    .eq('projects.created_by', username)
+                    .order('due_date', { ascending: true });
+
+                const { data: reports } = await sb.from('daily_reports')
+                    .select('*, projects(name)')
+                    .eq('username', username)
+                    .order('report_date', { ascending: false });
+
+                const projCount = projects ? projects.length : 0;
+                const overdueTasks = (tasks || []).filter(t => getDiffDays(t.due_date) < 0);
+                const dueSoonTasks = (tasks || []).filter(t => getDiffDays(t.due_date) >= 0 && getDiffDays(t.due_date) <= 7);
+                const reportCount = reports ? reports.length : 0;
+
+                // Attention tasks
+                let attentionHTML = '';
+                if (overdueTasks.length === 0 && dueSoonTasks.length === 0) {
+                    attentionHTML = `<div class="text-center py-4 text-slate-400 text-xs"><i data-lucide="smile" class="w-6 h-6 mx-auto mb-1 opacity-50"></i><p>All tasks on track.</p></div>`;
+                } else {
+                    [...overdueTasks, ...dueSoonTasks].forEach(t => {
+                        const isOverdue = getDiffDays(t.due_date) < 0;
+                        attentionHTML += `
+                            <div class="bg-white border ${isOverdue ? 'border-red-200 bg-red-50/30' : 'border-yellow-200 bg-yellow-50/30'} rounded-xl p-2.5">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="min-w-0 flex-1">
+                                        <h4 class="font-medium text-xs text-slate-800">${t.title}</h4>
+                                        <p class="text-[10px] text-slate-500">${t.projects?.name || 'No project'}</p>
+                                    </div>
+                                    <span class="text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${isOverdue ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}">${isOverdue ? `${Math.abs(getDiffDays(t.due_date))}d overdue` : `Due in ${getDiffDays(t.due_date)}d`}</span>
+                                </div>
+                            </div>`;
+                    });
+                }
+
+                // Reports list
+                let reportsHTML = '';
+                if (reports && reports.length > 0) {
+                    reports.forEach(r => {
+                        reportsHTML += `
+                            <div class="bg-white border border-slate-200 rounded-xl p-2.5">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-1.5 mb-0.5">
+                                            <span class="text-[10px] font-medium text-slate-600">${r.projects?.name || 'General'}</span>
+                                            ${r.company ? `<span class="text-[10px] px-1 py-0.5 rounded-full bg-blue-100 text-blue-600">${r.company}${r.guests ? ` (${r.guests})` : ''}</span>` : ''}
+                                        </div>
+                                        <p class="text-xs text-slate-700">${r.content}</p>
+                                    </div>
+                                    <span class="text-[10px] text-slate-400 whitespace-nowrap">${formatDate(r.report_date)}</span>
+                                </div>
+                            </div>`;
+                    });
+                } else {
+                    reportsHTML = `<div class="text-center py-4 text-slate-400 text-xs">No reports yet.</div>`;
+                }
+
+                container.innerHTML = `
+                    <div class="space-y-4 animate-fade-in">
+                        <div class="flex items-center gap-2">
+                            <button onclick="switchTab('employees')" class="text-slate-400 hover:text-slate-600 p-1"><i data-lucide="arrow-left" class="w-5 h-5"></i></button>
+                            <div class="w-8 h-8 rounded-full bg-[#00AEEF]/10 flex items-center justify-center text-[#00AEEF] font-bold text-xs">${username.charAt(0).toUpperCase()}</div>
+                            <h2 class="text-lg font-bold text-slate-800 capitalize">${username}</h2>
+                        </div>
+
+                        <!-- Overview Stats -->
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 text-center border-t-4 border-t-[#00AEEF]">
+                                <div class="text-2xl font-bold text-slate-800">${projCount}</div>
+                                <div class="text-[10px] text-slate-500">Projects</div>
+                            </div>
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 text-center border-t-4 border-t-yellow-400">
+                                <div class="text-2xl font-bold text-yellow-600">${dueSoonTasks.length}</div>
+                                <div class="text-[10px] text-slate-500">Due Soon</div>
+                            </div>
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 text-center border-t-4 border-t-red-400">
+                                <div class="text-2xl font-bold text-red-600">${overdueTasks.length}</div>
+                                <div class="text-[10px] text-slate-500">Overdue</div>
+                            </div>
+                        </div>
+
+                        <!-- Attention Summary -->
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-700 mb-2">⚠️ Attention Summary</h3>
+                            <div class="space-y-2">${attentionHTML}</div>
+                        </div>
+
+                        <!-- Daily Reports -->
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-700 mb-2">📋 Daily Reports (${reportCount})</h3>
+                            <div class="space-y-2">${reportsHTML}</div>
+                        </div>
+                    </div>`;
+                lucide.createIcons();
+            } catch (err) {
+                container.innerHTML = `<div class="p-8 text-center text-red-500">Error: ${err.message}</div>`;
+            }
+            hideLoading();
+        }
+
+        // ============================================
+        // ADMIN: ALL REPORTS GRID
+        // ============================================
+        async function getAdminReportsHTML() {
+            const { data: employees } = await sb.from('users')
+                .select('username')
+                .eq('role', 'employee')
+                .eq('status', 'approved')
+                .order('username', { ascending: true });
+
+            if (!employees || employees.length === 0) {
+                return `<div class="text-center py-12 text-slate-400"><p>No employees found.</p></div>`;
+            }
+
+            let gridHTML = '';
+            for (const emp of employees) {
+                const { data: reports } = await sb.from('daily_reports')
+                    .select('*, projects(name)')
+                    .eq('username', emp.username)
+                    .order('report_date', { ascending: false })
+                    .limit(10);
+
+                let reportsList = '';
+                if (reports && reports.length > 0) {
+                    reports.forEach(r => {
+                        reportsList += `
+                            <div class="text-[11px] text-slate-700 border-b border-slate-100 pb-1.5 mb-1.5 last:border-0 last:mb-0 last:pb-0">
+                                <div class="flex items-start justify-between gap-1">
+                                    <span class="font-medium">${r.projects?.name || 'General'}</span>
+                                    <span class="text-[10px] text-slate-400 whitespace-nowrap">${formatDate(r.report_date)}</span>
+                                </div>
+                                <p class="text-slate-600 mt-0.5 line-clamp-4">${r.content}</p>
+                                ${r.company ? `<span class="text-[10px] text-blue-600 mt-0.5 inline-block">🏢 ${r.company}${r.guests ? ` (${r.guests})` : ''}</span>` : ''}
+                            </div>`;
+                    });
+                } else {
+                    reportsList = `<div class="text-[11px] text-slate-400 text-center py-4">No reports</div>`;
+                }
+
+                gridHTML += `
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="bg-[#00AEEF]/5 px-3 py-2 border-b border-slate-200 flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-full bg-[#00AEEF]/20 flex items-center justify-center text-[#00AEEF] font-bold text-[10px]">${emp.username.charAt(0).toUpperCase()}</div>
+                            <span class="font-semibold text-xs text-slate-700 capitalize">${emp.username}</span>
+                            <span class="ml-auto text-[10px] text-slate-400">${reports ? reports.length : 0}</span>
+                        </div>
+                        <div class="p-3 max-h-80 overflow-y-auto">
+                            ${reportsList}
+                        </div>
+                    </div>`;
+            }
+
+            return `
+                <div class="space-y-4 animate-fade-in">
+                    <h2 class="text-lg font-bold text-slate-800">📋 All Daily Reports</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        ${gridHTML}
+                    </div>
+                </div>`;
+        }
+
+        // ============================================
+        // DASHBOARD (Employee only)
         // ============================================
         async function getDashboardHTML() {
-            const [projects, tasks, allUsers] = await Promise.all([
-                sb.from('projects').select('id', { count: 'exact', head: true }),
-                sb.from('tasks').select('id, is_complete, due_date'),
-                sb.from('users').select('id, status').eq('status', 'pending')
-            ]);
+            const { data: projects } = await sb.from('projects')
+                .select('id', { count: 'exact', head: true })
+                .eq('created_by', currentUser.username);
+            const { data: tasks } = await sb.from('tasks')
+                .select('id, is_complete, due_date, projects!inner(created_by)')
+                .eq('projects.created_by', currentUser.username);
 
             const projectCount = projects.count || 0;
             const allTasks = tasks.data || [];
@@ -405,17 +670,12 @@
 
             return `
                 <div class="space-y-4 animate-fade-in">
-                    <h2 class="text-lg font-bold text-slate-800 mb-4">System Overview</h2>
+                    <h2 class="text-lg font-bold text-slate-800">System Overview</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                         <div onclick="switchTab('projects')" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 border-t-4 border-t-[#00AEEF] cursor-pointer hover:shadow-md transition-all">
                             <div class="text-slate-500 text-xs font-medium mb-1">Total Projects</div>
                             <div class="text-3xl font-bold text-slate-800">${projectCount}</div>
                         </div>
-                        ${currentUser.role === 'admin' ? `
-                        <div onclick="switchTab('users')" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 border-t-4 border-t-slate-400 cursor-pointer hover:shadow-md transition-all">
-                            <div class="text-slate-500 text-xs font-medium mb-1">Pending Users</div>
-                            <div class="text-3xl font-bold text-slate-600">${pendingUsers}</div>
-                        </div>` : ''}
                     </div>
                     <div class="pt-3 border-t border-slate-200">
                         <h3 class="text-base font-bold text-slate-800 mb-3">Total Attention</h3>
@@ -441,9 +701,11 @@
         // PROJECTS
         // ============================================
         async function getProjectsHTML() {
-            const { data: projects } = await sb.from('projects')
-                .select('*')
-                .order('created_at', { ascending: false });
+            let query = sb.from('projects').select('*');
+            if (currentUser.role !== 'admin') {
+                query = query.eq('created_by', currentUser.username);
+            }
+            const { data: projects } = await query.order('created_at', { ascending: false });
 
             let listHTML = '';
             if (!projects || projects.length === 0) {
@@ -745,10 +1007,13 @@
         // ATTENTION SUMMARY
         // ============================================
         async function getAttentionHTML() {
-            const { data: tasks } = await sb.from('tasks')
+            let query = sb.from('tasks')
                 .select('*, projects!inner(name)')
-                .eq('is_complete', false)
-                .order('due_date', { ascending: true });
+                .eq('is_complete', false);
+            if (currentUser.role !== 'admin') {
+                query = query.eq('projects.created_by', currentUser.username);
+            }
+            const { data: tasks } = await query.order('due_date', { ascending: true });
 
             const attentionTasks = (tasks || []).filter(t => getDiffDays(t.due_date) <= 7);
 
@@ -1076,21 +1341,26 @@
             let listHTML = '';
             if (users) {
                 users.forEach(u => {
+                    const isAdmin = u.role === 'admin';
                     listHTML += `
                         <div class="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between">
                             <div>
                                 <span class="font-medium text-sm text-slate-800">${u.username}</span>
                                 <span class="text-xs ml-2 px-1.5 py-0.5 rounded-full ${
-                                    u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'
+                                    isAdmin ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'
                                 }">${u.role}</span>
                                 <span class="text-xs ml-1 px-1.5 py-0.5 rounded-full ${
                                     u.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
                                 }">${u.status}</span>
                             </div>
                             <div class="flex gap-1">
-                                ${u.status === 'pending' ? `
-                                    <button onclick="approveUser(${u.id})" class="text-xs px-2 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600">Approve</button>
-                                    <button onclick="rejectUser(${u.id})" class="text-xs px-2 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600">Reject</button>
+                                ${!isAdmin ? `
+                                    ${u.status === 'pending' ? `
+                                        <button onclick="approveUser(${u.id})" class="text-xs px-2 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600">Approve</button>
+                                        <button onclick="deleteUser(${u.id},'${u.username}')" class="text-xs px-2 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600">Reject</button>
+                                    ` : `
+                                        <button onclick="deleteUser(${u.id},'${u.username}')" class="text-xs px-2 py-1 bg-red-400 text-white rounded-lg hover:bg-red-600"><i data-lucide="trash-2" class="w-3 h-3 inline"></i> Remove</button>
+                                    `}
                                 ` : ''}
                             </div>
                         </div>`;
@@ -1114,15 +1384,17 @@
             }
         }
 
-        async function rejectUser(userId) {
-            if (!confirm('Reject and delete this user?')) return;
+        async function deleteUser(userId, username) {
+            if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+            showLoading('Deleting user...');
             try {
                 await supabaseDelete('users', { id: userId });
-                showToast('User rejected');
+                showToast(`User "${username}" deleted`);
                 await renderContent();
             } catch (err) {
                 showToast('Error: ' + err.message, true);
             }
+            hideLoading();
         }
     </script>
 </body>
