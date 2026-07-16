@@ -6,16 +6,30 @@
     <title>FlexPack Project Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Supabase JS SDK -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
-        /* Hide scrollbar for cleaner look */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         .line-clamp-4 { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 overflow-hidden h-screen flex flex-col md:flex-row">
+
+    <!-- Loading Spinner -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white/80 flex items-center justify-center z-50 hidden">
+        <div class="flex flex-col items-center gap-3">
+            <svg class="animate-spin h-8 w-8 text-[#00AEEF]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="text-sm text-slate-500" id="loading-text">Loading...</span>
+        </div>
+    </div>
 
     <!-- Toast Notification -->
     <div id="toast" class="fixed bottom-6 right-6 bg-slate-800 text-white px-4 py-2 rounded-lg shadow-xl flex items-center z-50 text-sm transition-opacity duration-300 opacity-0 pointer-events-none">
@@ -27,10 +41,10 @@
     <div id="auth-view" class="absolute inset-0 flex items-center justify-center bg-slate-100 p-4 z-50">
         <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg w-full max-w-sm text-center">
             <div class="flex justify-center mb-4">
-                <img src="https://i.imgur.com/cHHfOpw.png" alt="FlexPack Logo" class="h-12 w-auto object-contain" onerror="this.onerror=null; this.outerHTML='<div class=\'font-extrabold text-3xl\'><span class=\'text-[#00AEEF]\'>Flex</span><span class=\'text-gray-400\'>Pack</span></div>'"/>
+                <img src="https://i.imgur.com/cHHfOpw.png" alt="FlexPack Logo" class="h-12 w-auto object-contain" onerror="this.onerror=null; this.outerHTML='<div class=\\'font-extrabold text-3xl\\'><span class=\\'text-[#00AEEF]\\'>Flex</span><span class=\\'text-gray-400\\'>Pack</span></div>'"/>
             </div>
             <p id="auth-title" class="text-slate-500 mb-6 text-xs">System Login</p>
-            
+
             <form id="auth-form" onsubmit="handleAuth(event)" class="space-y-3">
                 <input type="text" id="auth-user" required placeholder="Username" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#00AEEF] outline-none text-sm"/>
                 <input type="password" id="auth-pass" required placeholder="Password" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#00AEEF] outline-none text-sm"/>
@@ -40,17 +54,17 @@
             </form>
 
             <div class="mt-4 text-xs text-slate-500">
-                <p id="auth-toggle-text">New employee? <button onclick="toggleAuthMode()" class="text-[#00AEEF] font-semibold">Register here</button></p>
+                <p id="auth-toggle-text">New employee? <button type="button" onclick="toggleAuthMode()" class="text-[#00AEEF] font-semibold">Register here</button></p>
             </div>
         </div>
     </div>
 
     <!-- ================= 2. MAIN APP VIEW ================= -->
     <div id="main-app-view" class="hidden flex-1 h-full flex flex-col md:flex-row w-full">
-        
+
         <!-- Mobile Header -->
         <div class="md:hidden flex items-center justify-between p-3 bg-white border-b border-slate-200 z-20">
-            <img src="https://i.imgur.com/cHHfOpw.png" alt="FlexPack Logo" class="h-8 w-auto object-contain" onerror="this.onerror=null; this.outerHTML='<div class=\'font-extrabold text-lg\'><span class=\'text-[#00AEEF]\'>Flex</span><span class=\'text-gray-400\'>Pack</span></div>'"/>
+            <img src="https://i.imgur.com/cHHfOpw.png" alt="FlexPack Logo" class="h-8 w-auto object-contain" onerror="this.onerror=null; this.outerHTML='<div class=\\'font-extrabold text-lg\\'><span class=\\'text-[#00AEEF]\\'>Flex</span><span class=\\'text-gray-400\\'>Pack</span></div>'"/>
             <button onclick="toggleMobileMenu(true)" class="p-1.5 -mr-1 text-slate-600 hover:bg-slate-100 rounded-lg">
                 <i data-lucide="menu" class="w-5 h-5"></i>
             </button>
@@ -62,12 +76,12 @@
         <!-- Sidebar -->
         <div id="sidebar" class="fixed inset-y-0 left-0 z-40 w-56 bg-white border-r border-slate-200 flex flex-col shadow-xl md:shadow-sm transform -translate-x-full transition-transform duration-300 ease-in-out md:relative md:translate-x-0">
             <div class="p-5 border-b border-slate-100 flex justify-between items-center">
-                <img src="https://i.imgur.com/cHHfOpw.png" alt="FlexPack Logo" class="h-8 w-auto object-contain" onerror="this.onerror=null; this.outerHTML='<div class=\'font-extrabold text-xl\'><span class=\'text-[#00AEEF]\'>Flex</span><span class=\'text-gray-400\'>Pack</span></div>'"/>
+                <img src="https://i.imgur.com/cHHfOpw.png" alt="FlexPack Logo" class="h-8 w-auto object-contain" onerror="this.onerror=null; this.outerHTML='<div class=\\'font-extrabold text-xl\\'><span class=\\'text-[#00AEEF]\\'>Flex</span><span class=\\'text-gray-400\\'>Pack</span></div>'"/>
                 <button class="md:hidden p-1 text-slate-500 hover:bg-slate-100 rounded-md" onclick="toggleMobileMenu(false)">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
-            
+
             <div class="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
                 <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="nav-btn w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
                     <i data-lucide="layout-dashboard" class="w-4 h-4 mr-2"></i> Dashboard
@@ -81,8 +95,9 @@
                 <button onclick="switchTab('report')" id="tab-btn-report" class="nav-btn w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
                     <i data-lucide="file-text" class="w-4 h-4 mr-2"></i> Daily Report
                 </button>
-                
-                <!-- Admin Only Tab -->
+                <button onclick="switchTab('photos')" id="tab-btn-photos" class="nav-btn w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                    <i data-lucide="camera" class="w-4 h-4 mr-2"></i> Photos
+                </button>
                 <button onclick="switchTab('users')" id="tab-btn-users" class="nav-btn role-admin-only w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors hidden">
                     <i data-lucide="users" class="w-4 h-4 mr-2"></i> User Mgmt
                 </button>
@@ -108,20 +123,26 @@
 
     <!-- ================= SCRIPT ================= -->
     <script>
-        // --- DATA STATE ---
-        let users = [
-            { username: 'admin', password: '8888', role: 'admin', status: 'approved' }
-        ];
-        let projects = []; 
-        let tasks = []; 
-        
+        // ============================================
+        // SUPABASE CLIENT
+        // ============================================
+        const SUPABASE_URL = 'https://utexuyhtfitsmpxebonj.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_dIdfukjl8XMhcZGIj1p_pQ_KMvbdWgJ';
+        const { createClient } = supabase;
+        const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // ============================================
+        // STATE
+        // ============================================
         let currentUser = null;
-        let authMode = 'login'; // login | register
+        let authMode = 'login';
         let activeTab = 'dashboard';
         let selectedProjectId = null;
         let expandedTaskId = null;
 
-        // --- UTILS ---
+        // ============================================
+        // UTILS
+        // ============================================
         function getDiffDays(dueDateStr) {
             if (!dueDateStr) return 999;
             const due = new Date(dueDateStr);
@@ -131,18 +152,30 @@
             return Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
         }
 
-        function showToast(message) {
+        function showToast(message, isError = false) {
             const toast = document.getElementById('toast');
-            document.getElementById('toast-msg').innerText = message;
+            const icon = toast.querySelector('i');
+            const msg = document.getElementById('toast-msg');
+            msg.innerText = message;
+            if (isError) {
+                icon.setAttribute('data-lucide', 'alert-circle');
+                icon.classList.remove('text-green-400');
+                icon.classList.add('text-red-400');
+            } else {
+                icon.setAttribute('data-lucide', 'check-circle-2');
+                icon.classList.remove('text-red-400');
+                icon.classList.add('text-green-400');
+            }
             toast.classList.remove('opacity-0', 'pointer-events-none');
+            lucide.createIcons();
             setTimeout(() => {
                 toast.classList.add('opacity-0', 'pointer-events-none');
             }, 3000);
         }
 
         function getTaskStatusObj(task) {
-            if (task.isComplete) return { text: "Completed", color: "bg-green-100 text-green-800 border-green-200", icon: "check-circle-2" };
-            const diffDays = getDiffDays(task.dueDate);
+            if (task.is_complete) return { text: "Completed", color: "bg-green-100 text-green-800 border-green-200", icon: "check-circle-2" };
+            const diffDays = getDiffDays(task.due_date);
             if (diffDays < 0) return { text: "Overdue", color: "bg-red-100 text-red-800 border-red-200", icon: "alert-circle" };
             if (diffDays <= 7) return { text: `Due in ${diffDays}d`, color: "bg-yellow-100 text-yellow-800 border-yellow-200", icon: "clock" };
             return { text: "On Track", color: "bg-gray-100 text-gray-800 border-gray-200", icon: "clock" };
@@ -160,63 +193,157 @@
             }
         }
 
-        // --- AUTH ---
+        function showLoading(text = 'Loading...') {
+            const overlay = document.getElementById('loading-overlay');
+            document.getElementById('loading-text').innerText = text;
+            overlay.classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-overlay').classList.add('hidden');
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        // ============================================
+        // SUPABASE HELPERS
+        // ============================================
+        async function supabaseQuery(table, options = {}) {
+            const { select = '*', eq, order, limit, single } = options;
+            let query = sb.from(table).select(select);
+            if (eq) for (const [k, v] of Object.entries(eq)) query = query.eq(k, v);
+            if (order) query = query.order(order.by, { ascending: order.asc !== false });
+            if (limit) query = query.limit(limit);
+            if (single) query = query.single();
+            const { data, error } = await query;
+            if (error) throw error;
+            return data;
+        }
+
+        async function supabaseInsert(table, records) {
+            const { data, error } = await sb.from(table).insert(records).select();
+            if (error) throw error;
+            return data;
+        }
+
+        async function supabaseUpdate(table, match, updates) {
+            let query = sb.from(table).update(updates);
+            for (const [k, v] of Object.entries(match)) query = query.eq(k, v);
+            const { data, error } = await query.select();
+            if (error) throw error;
+            return data;
+        }
+
+        async function supabaseDelete(table, match) {
+            let query = sb.from(table).delete();
+            for (const [k, v] of Object.entries(match)) query = query.eq(k, v);
+            const { data, error } = await query;
+            if (error) throw error;
+            return data;
+        }
+
+        // ============================================
+        // AUTH
+        // ============================================
         function toggleAuthMode() {
             authMode = authMode === 'login' ? 'register' : 'login';
             document.getElementById('auth-title').innerText = authMode === 'login' ? 'System Login' : 'Employee Registration';
             document.getElementById('auth-submit-btn').innerText = authMode === 'login' ? 'Login' : 'Register Account';
-            document.getElementById('auth-toggle-text').innerHTML = authMode === 'login' 
+            document.getElementById('auth-toggle-text').innerHTML = authMode === 'login'
                 ? 'New employee? <button type="button" onclick="toggleAuthMode()" class="text-[#00AEEF] font-semibold">Register here</button>'
                 : 'Already registered? <button type="button" onclick="toggleAuthMode()" class="text-[#00AEEF] font-semibold">Back to Login</button>';
         }
 
-        function handleAuth(e) {
+        async function handleAuth(e) {
             e.preventDefault();
             const u = document.getElementById('auth-user').value.trim();
             const p = document.getElementById('auth-pass').value.trim();
-            
-            if (authMode === 'login') {
-                const user = users.find(x => x.username === u && x.password === p);
-                if (!user) return alert("Invalid username or password.");
-                if (user.status !== 'approved') return alert("Your account is pending approval by Admin.");
-                
-                // Login Success
-                currentUser = user;
-                document.getElementById('auth-user').value = '';
-                document.getElementById('auth-pass').value = '';
-                document.getElementById('auth-view').classList.add('hidden');
-                document.getElementById('main-app-view').classList.remove('hidden');
-                document.getElementById('display-username').innerText = `${currentUser.username} (${currentUser.role})`;
-                
-                // CRUCIAL: Hide Admin Elements for Employees
-                document.querySelectorAll('.role-admin-only').forEach(el => {
-                    if(currentUser.role === 'admin') el.classList.remove('hidden');
-                    else el.classList.add('hidden');
-                });
+            if (!u || !p) return alert('Please fill in all fields.');
 
-                switchTab('dashboard');
-            } else {
-                if (users.find(x => x.username === u)) return alert("Username already exists.");
-                users.push({ username: u, password: p, role: 'employee', status: 'pending' });
-                alert("Registration successful. Please wait for Admin to approve.");
-                toggleAuthMode();
+            showLoading(authMode === 'login' ? 'Signing in...' : 'Registering...');
+
+            try {
+                if (authMode === 'login') {
+                    const { data: users, error } = await sb
+                        .from('users')
+                        .select('*')
+                        .eq('username', u)
+                        .eq('password', p)
+                        .limit(1);
+
+                    if (error) throw error;
+
+                    if (!users || users.length === 0) {
+                        hideLoading();
+                        return alert('Invalid username or password.');
+                    }
+
+                    const user = users[0];
+                    if (user.status !== 'approved') {
+                        hideLoading();
+                        return alert('Your account is pending approval by Admin.');
+                    }
+
+                    currentUser = user;
+                    document.getElementById('auth-user').value = '';
+                    document.getElementById('auth-pass').value = '';
+                    document.getElementById('auth-view').classList.add('hidden');
+                    document.getElementById('main-app-view').classList.remove('hidden');
+                    document.getElementById('display-username').innerText = `${currentUser.username} (${currentUser.role})`;
+
+                    document.querySelectorAll('.role-admin-only').forEach(el => {
+                        if (currentUser.role === 'admin') el.classList.remove('hidden');
+                        else el.classList.add('hidden');
+                    });
+
+                    hideLoading();
+                    await switchTab('dashboard');
+                } else {
+                    // Register
+                    const { data: existing } = await sb.from('users').select('id').eq('username', u).limit(1);
+                    if (existing && existing.length > 0) {
+                        hideLoading();
+                        return alert('Username already exists.');
+                    }
+
+                    const { error } = await sb.from('users').insert([{
+                        username: u,
+                        password: p,
+                        role: 'employee',
+                        status: 'pending'
+                    }]);
+
+                    if (error) throw error;
+
+                    hideLoading();
+                    alert('Registration successful. Please wait for Admin to approve.');
+                    toggleAuthMode();
+                }
+            } catch (err) {
+                hideLoading();
+                alert('Error: ' + err.message);
             }
         }
 
-        function doLogout() {
+        async function doLogout() {
             currentUser = null;
             document.getElementById('main-app-view').classList.add('hidden');
             document.getElementById('auth-view').classList.remove('hidden');
+            document.getElementById('content-container').innerHTML = '';
         }
 
-        // --- NAVIGATION & RENDERING ---
-        function switchTab(tab) {
-            if (tab === 'users' && currentUser.role !== 'admin') return; // Security check
+        // ============================================
+        // NAVIGATION & RENDERING
+        // ============================================
+        async function switchTab(tab) {
+            if (tab === 'users' && (!currentUser || currentUser.role !== 'admin')) return;
             activeTab = tab;
             selectedProjectId = null;
             toggleMobileMenu(false);
-            
-            // Update Nav Highlighting
+
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 btn.classList.remove('bg-sky-50', 'text-[#00AEEF]');
                 btn.classList.add('text-slate-600');
@@ -227,42 +354,62 @@
                 activeBtn.classList.remove('text-slate-600');
             }
 
-            renderContent();
+            await renderContent();
         }
 
-        function renderContent() {
+        async function renderContent() {
             const container = document.getElementById('content-container');
-            let html = '';
+            showLoading('Loading...');
 
-            if (activeTab === 'dashboard') html = getDashboardHTML();
-            else if (activeTab === 'projects') html = getProjectsHTML();
-            else if (activeTab === 'attention') html = getAttentionHTML();
-            else if (activeTab === 'report') html = getReportHTML();
-            else if (activeTab === 'users') html = getUsersHTML();
+            try {
+                let html = '';
+                if (activeTab === 'dashboard') html = await getDashboardHTML();
+                else if (activeTab === 'projects') html = await getProjectsHTML();
+                else if (activeTab === 'attention') html = await getAttentionHTML();
+                else if (activeTab === 'report') html = await getReportHTML();
+                else if (activeTab === 'photos') html = await getPhotosHTML();
+                else if (activeTab === 'users') html = await getUsersHTML();
 
-            container.innerHTML = html;
-            lucide.createIcons(); // Initialize icons in injected HTML
+                container.innerHTML = html;
+                lucide.createIcons();
+            } catch (err) {
+                container.innerHTML = `<div class="p-8 text-center text-red-500"><i data-lucide="alert-triangle" class="w-8 h-8 mx-auto mb-2"></i><p>Error loading: ${err.message}</p></div>`;
+                lucide.createIcons();
+            }
+
+            hideLoading();
         }
 
-        // --- DASHBOARD ---
-        function getDashboardHTML() {
+        // ============================================
+        // DASHBOARD
+        // ============================================
+        async function getDashboardHTML() {
+            const [projects, tasks, allUsers] = await Promise.all([
+                sb.from('projects').select('id', { count: 'exact', head: true }),
+                sb.from('tasks').select('id, is_complete, due_date'),
+                sb.from('users').select('id, status').eq('status', 'pending')
+            ]);
+
+            const projectCount = projects.count || 0;
+            const allTasks = tasks.data || [];
+            const pendingUsers = allUsers.data ? allUsers.data.length : 0;
+
             let redCount = 0, yellowCount = 0;
-            tasks.forEach(t => {
-                if (!t.isComplete) {
-                    const days = getDiffDays(t.dueDate);
+            allTasks.forEach(t => {
+                if (!t.is_complete) {
+                    const days = getDiffDays(t.due_date);
                     if (days < 0) redCount++;
                     else if (days <= 7) yellowCount++;
                 }
             });
-            const pendingUsers = users.filter(u => u.status === 'pending').length;
 
             return `
-                <div class="space-y-4 animate-in fade-in duration-300">
+                <div class="space-y-4 animate-fade-in">
                     <h2 class="text-lg font-bold text-slate-800 mb-4">System Overview</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                         <div onclick="switchTab('projects')" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 border-t-4 border-t-[#00AEEF] cursor-pointer hover:shadow-md transition-all">
                             <div class="text-slate-500 text-xs font-medium mb-1">Total Projects</div>
-                            <div class="text-3xl font-bold text-slate-800">${projects.length}</div>
+                            <div class="text-3xl font-bold text-slate-800">${projectCount}</div>
                         </div>
                         ${currentUser.role === 'admin' ? `
                         <div onclick="switchTab('users')" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 border-t-4 border-t-slate-400 cursor-pointer hover:shadow-md transition-all">
@@ -273,13 +420,13 @@
                     <div class="pt-3 border-t border-slate-200">
                         <h3 class="text-base font-bold text-slate-800 mb-3">Total Attention</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <button onclick="switchTab('attention')" class="bg-yellow-50 border border-yellow-200 p-4 rounded-xl text-left hover:bg-yellow-100 hover:border-yellow-300 transition-all flex flex-col items-start shadow-sm w-full">
+                            <button onclick="switchTab('attention')" class="bg-yellow-50 border border-yellow-200 p-4 rounded-xl text-left hover:bg-yellow-100 transition-all flex flex-col items-start shadow-sm w-full">
                                 <div class="flex items-center text-yellow-800 text-xs font-semibold mb-1">
                                     <i data-lucide="clock" class="w-4 h-4 mr-1.5"></i> Due in ≤ 7 Days
                                 </div>
                                 <div class="text-3xl font-bold text-yellow-600">${yellowCount}</div>
                             </button>
-                            <button onclick="switchTab('attention')" class="bg-red-50 border border-red-200 p-4 rounded-xl text-left hover:bg-red-100 hover:border-red-300 transition-all flex flex-col items-start shadow-sm w-full">
+                            <button onclick="switchTab('attention')" class="bg-red-50 border border-red-200 p-4 rounded-xl text-left hover:bg-red-100 transition-all flex flex-col items-start shadow-sm w-full">
                                 <div class="flex items-center text-red-800 text-xs font-semibold mb-1">
                                     <i data-lucide="alert-circle" class="w-4 h-4 mr-1.5"></i> Overdue
                                 </div>
@@ -290,344 +437,605 @@
                 </div>`;
         }
 
-        // --- ATTENTION SUMMARY ---
-        function getAttentionHTML() {
-            let attentionTasks = tasks.filter(t => !t.isComplete && getDiffDays(t.dueDate) <= 7);
-            attentionTasks.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+        // ============================================
+        // PROJECTS
+        // ============================================
+        async function getProjectsHTML() {
+            const { data: projects } = await sb.from('projects')
+                .select('*')
+                .order('created_at', { ascending: false });
 
             let listHTML = '';
-            if(attentionTasks.length === 0) {
-                listHTML = `
-                    <div class="text-center py-8 bg-white rounded-xl border border-slate-200 text-slate-500 shadow-sm text-sm">
-                        <i data-lucide="check-circle-2" class="w-8 h-8 mx-auto text-green-400 mb-2"></i>
-                        Great job! No overdue tasks or tasks due within 7 days.
-                    </div>`;
+            if (!projects || projects.length === 0) {
+                listHTML = `<div class="text-center py-12 text-slate-400"><i data-lucide="briefcase" class="w-12 h-12 mx-auto mb-3 opacity-50"></i><p>No projects yet. Create your first project!</p></div>`;
             } else {
-                listHTML = '<div class="space-y-3">';
-                attentionTasks.forEach(task => {
-                    const project = projects.find(p => p.id === task.projectId);
-                    const diffDays = getDiffDays(task.dueDate);
-                    const isOverdue = diffDays < 0;
-                    
+                for (const p of projects) {
+                    const { count: taskCount } = await sb.from('tasks')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('project_id', p.id);
+
                     listHTML += `
-                        <div class="bg-white rounded-xl shadow-sm border-l-4 p-4 ${isOverdue ? 'border-l-red-500 border-t border-b border-r border-red-100' : 'border-l-yellow-400 border-t border-b border-r border-yellow-100'}">
-                            <div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
-                                Project: <span class="text-slate-800">${project?.name || 'Unknown'}</span>
+                        <div onclick="selectProject(${p.id})" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-all cursor-pointer">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <h4 class="font-semibold text-slate-800">${p.name}</h4>
+                                    <p class="text-xs text-slate-500 mt-0.5 line-clamp-4">${p.description || 'No description'}</p>
+                                </div>
+                                <span class="text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                                    p.status === 'active' ? 'bg-green-100 text-green-700' :
+                                    p.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'
+                                }">${p.status}</span>
                             </div>
-                            <div class="text-sm font-bold text-slate-800 mb-2 whitespace-pre-wrap">${task.name}</div>
-                            <div class="flex items-center mt-1">
-                                <span class="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold ${isOverdue ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-800'}">
-                                    ${isOverdue 
-                                        ? `<i data-lucide="alert-circle" class="w-3 h-3 mr-1"></i> OVERDUE: ${task.dueDate}` 
-                                        : `<i data-lucide="clock" class="w-3 h-3 mr-1"></i> DEADLINE: ${task.dueDate} (${diffDays} days left)`}
-                                </span>
+                            <div class="flex items-center gap-3 mt-3 text-xs text-slate-400">
+                                <span><i data-lucide="list-todo" class="w-3 h-3 inline mr-0.5"></i> ${taskCount} tasks</span>
+                                <span><i data-lucide="user" class="w-3 h-3 inline mr-0.5"></i> ${p.created_by}</span>
+                                <span><i data-lucide="calendar" class="w-3 h-3 inline mr-0.5"></i> ${formatDate(p.created_at)}</span>
+                            </div>
+                        </div>`;
+                }
+            }
+
+            return `
+                <div class="space-y-4 animate-fade-in">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-bold text-slate-800">Projects</h2>
+                        <button onclick="showProjectModal()" class="bg-[#00AEEF] hover:bg-[#0095cc] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                            <i data-lucide="plus" class="w-3 h-3 inline mr-0.5"></i> New Project
+                        </button>
+                    </div>
+                    <div class="space-y-3">
+                        ${listHTML}
+                    </div>
+                </div>
+
+                <!-- New Project Modal -->
+                <div id="project-modal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 hidden p-4" onclick="if(event.target===this)closeProjectModal()">
+                    <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6" onclick="event.stopPropagation()">
+                        <h3 class="font-bold text-slate-800 mb-4">New Project</h3>
+                        <form onsubmit="createProject(event)" class="space-y-3">
+                            <input type="text" id="project-name" required placeholder="Project Name" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00AEEF] outline-none">
+                            <textarea id="project-desc" rows="3" placeholder="Description (optional)" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00AEEF] outline-none"></textarea>
+                            <div class="flex gap-2 justify-end">
+                                <button type="button" onclick="closeProjectModal()" class="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                                <button type="submit" class="px-4 py-1.5 bg-[#00AEEF] text-white text-xs font-semibold rounded-lg hover:bg-[#0095cc]">Create</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>`;
+        }
+
+        function showProjectModal() {
+            document.getElementById('project-modal').classList.remove('hidden');
+            document.getElementById('project-name').focus();
+        }
+
+        function closeProjectModal() {
+            document.getElementById('project-modal').classList.add('hidden');
+        }
+
+        async function createProject(e) {
+            e.preventDefault();
+            const name = document.getElementById('project-name').value.trim();
+            const desc = document.getElementById('project-desc').value.trim();
+            if (!name) return;
+
+            showLoading('Creating project...');
+            try {
+                await supabaseInsert('projects', [{
+                    name,
+                    description: desc,
+                    status: 'active',
+                    created_by: currentUser.username
+                }]);
+                closeProjectModal();
+                document.getElementById('project-name').value = '';
+                document.getElementById('project-desc').value = '';
+                showToast('Project created!');
+                await renderContent();
+            } catch (err) {
+                showToast('Error: ' + err.message, true);
+            }
+            hideLoading();
+        }
+
+        // ============================================
+        // PROJECT DETAIL (Tasks View)
+        // ============================================
+        async function selectProject(projectId) {
+            selectedProjectId = projectId;
+            const container = document.getElementById('content-container');
+            showLoading('Loading project...');
+
+            try {
+                const { data: project } = await sb.from('projects').select('*').eq('id', projectId).single();
+                const { data: tasks } = await sb.from('tasks')
+                    .select('*')
+                    .eq('project_id', projectId)
+                    .order('due_date', { ascending: true });
+
+                let taskHTML = '';
+                if (!tasks || tasks.length === 0) {
+                    taskHTML = `<div class="text-center py-8 text-slate-400"><i data-lucide="list-checks" class="w-8 h-8 mx-auto mb-2 opacity-50"></i><p class="text-xs">No tasks yet.</p></div>`;
+                } else {
+                    tasks.forEach(t => {
+                        const status = getTaskStatusObj(t);
+                        taskHTML += `
+                            <div class="bg-white border border-slate-200 rounded-xl p-3 hover:shadow-sm transition-all">
+                                <div class="flex items-start gap-2">
+                                    <input type="checkbox" ${t.is_complete ? 'checked' : ''}
+                                           onchange="toggleTask(${t.id}, this.checked)"
+                                           class="mt-0.5 h-4 w-4 text-[#00AEEF] rounded border-slate-300 focus:ring-[#00AEEF] cursor-pointer">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-start justify-between gap-2">
+                                            <span class="font-medium text-sm ${t.is_complete ? 'line-through text-slate-400' : 'text-slate-800'}">${t.title}</span>
+                                            <span class="text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${status.color}">${status.text}</span>
+                                        </div>
+                                        ${t.description ? `<p class="text-xs text-slate-500 mt-0.5">${t.description}</p>` : ''}
+                                        <div class="flex items-center gap-3 mt-1.5 text-[10px] text-slate-400">
+                                            ${t.due_date ? `<span><i data-lucide="calendar" class="w-3 h-3 inline mr-0.5"></i>${formatDate(t.due_date)}</span>` : ''}
+                                            ${t.assigned_to ? `<span><i data-lucide="user" class="w-3 h-3 inline mr-0.5"></i>${t.assigned_to}</span>` : ''}
+                                            <button onclick="deleteTask(${t.id})" class="text-red-400 hover:text-red-600 ml-auto"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>`;
+                    });
+                }
+
+                container.innerHTML = `
+                    <div class="space-y-4 animate-fade-in">
+                        <div class="flex items-center gap-2 mb-2">
+                            <button onclick="switchTab('projects')" class="text-slate-400 hover:text-slate-600">
+                                <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                            </button>
+                            <div>
+                                <h2 class="text-lg font-bold text-slate-800">${project.name}</h2>
+                                <p class="text-xs text-slate-500">${project.description || 'No description'}</p>
+                            </div>
+                            <span class="ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                                project.status === 'active' ? 'bg-green-100 text-green-700' :
+                                project.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'
+                            }">${project.status}</span>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <button onclick="showTaskModal()" class="bg-[#00AEEF] hover:bg-[#0095cc] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                                <i data-lucide="plus" class="w-3 h-3 inline mr-0.5"></i> Add Task
+                            </button>
+                            <button onclick="showStatusModal()" class="text-xs px-3 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
+                                <i data-lucide="settings" class="w-3 h-3 inline mr-0.5"></i> Status
+                            </button>
+                        </div>
+
+                        <div class="space-y-2">
+                            ${taskHTML}
+                        </div>
+                    </div>
+
+                    <!-- New Task Modal -->
+                    <div id="task-modal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 hidden p-4" onclick="if(event.target===this)closeTaskModal()">
+                        <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6" onclick="event.stopPropagation()">
+                            <h3 class="font-bold text-slate-800 mb-4">New Task</h3>
+                            <form onsubmit="createTask(event)" class="space-y-3">
+                                <input type="text" id="task-title" required placeholder="Task title" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00AEEF] outline-none">
+                                <textarea id="task-desc" rows="2" placeholder="Description (optional)" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00AEEF] outline-none"></textarea>
+                                <input type="date" id="task-due" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00AEEF] outline-none">
+                                <input type="text" id="task-assign" placeholder="Assigned to (optional)" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00AEEF] outline-none">
+                                <div class="flex gap-2 justify-end">
+                                    <button type="button" onclick="closeTaskModal()" class="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                                    <button type="submit" class="px-4 py-1.5 bg-[#00AEEF] text-white text-xs font-semibold rounded-lg hover:bg-[#0095cc]">Add</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Status Modal -->
+                    <div id="status-modal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 hidden p-4" onclick="if(event.target===this)closeStatusModal()">
+                        <div class="bg-white rounded-xl shadow-xl w-full max-w-xs p-6" onclick="event.stopPropagation()">
+                            <h3 class="font-bold text-slate-800 mb-4">Change Status</h3>
+                            <div class="space-y-2">
+                                ${['active', 'completed', 'on_hold'].map(s => `
+                                    <button onclick="updateProjectStatus(${projectId}, '${s}')"
+                                        class="w-full text-left px-3 py-2 rounded-lg text-sm border ${project.status === s ? 'border-[#00AEEF] bg-sky-50 text-[#00AEEF]' : 'border-slate-200 hover:bg-slate-50'}">
+                                        ${s.charAt(0).toUpperCase() + s.slice(1).replace('_', ' ')}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>`;
+
+                lucide.createIcons();
+            } catch (err) {
+                container.innerHTML = `<div class="p-8 text-center text-red-500">Error: ${err.message}</div>`;
+            }
+            hideLoading();
+        }
+
+        function showTaskModal() {
+            document.getElementById('task-modal').classList.remove('hidden');
+            document.getElementById('task-title').focus();
+        }
+        function closeTaskModal() {
+            document.getElementById('task-modal').classList.add('hidden');
+        }
+        function showStatusModal() {
+            document.getElementById('status-modal').classList.remove('hidden');
+        }
+        function closeStatusModal() {
+            document.getElementById('status-modal').classList.add('hidden');
+        }
+
+        async function createTask(e) {
+            e.preventDefault();
+            const title = document.getElementById('task-title').value.trim();
+            if (!title || !selectedProjectId) return;
+
+            showLoading();
+            try {
+                await supabaseInsert('tasks', [{
+                    project_id: selectedProjectId,
+                    title,
+                    description: document.getElementById('task-desc').value.trim(),
+                    due_date: document.getElementById('task-due').value || null,
+                    assigned_to: document.getElementById('task-assign').value.trim(),
+                    is_complete: false
+                }]);
+                closeTaskModal();
+                document.getElementById('task-title').value = '';
+                document.getElementById('task-desc').value = '';
+                document.getElementById('task-due').value = '';
+                document.getElementById('task-assign').value = '';
+                showToast('Task added!');
+                await selectProject(selectedProjectId);
+            } catch (err) {
+                showToast('Error: ' + err.message, true);
+            }
+            hideLoading();
+        }
+
+        async function toggleTask(taskId, completed) {
+            try {
+                await supabaseUpdate('tasks', { id: taskId }, { is_complete: completed });
+                await selectProject(selectedProjectId);
+            } catch (err) {
+                showToast('Error: ' + err.message, true);
+            }
+        }
+
+        async function deleteTask(taskId) {
+            if (!confirm('Delete this task?')) return;
+            try {
+                await supabaseDelete('tasks', { id: taskId });
+                showToast('Task deleted');
+                await selectProject(selectedProjectId);
+            } catch (err) {
+                showToast('Error: ' + err.message, true);
+            }
+        }
+
+        async function updateProjectStatus(projectId, status) {
+            try {
+                await supabaseUpdate('projects', { id: projectId }, { status });
+                closeStatusModal();
+                showToast('Status updated');
+                await selectProject(projectId);
+            } catch (err) {
+                showToast('Error: ' + err.message, true);
+            }
+        }
+
+        // ============================================
+        // ATTENTION SUMMARY
+        // ============================================
+        async function getAttentionHTML() {
+            const { data: tasks } = await sb.from('tasks')
+                .select('*, projects!inner(name)')
+                .eq('is_complete', false)
+                .order('due_date', { ascending: true });
+
+            const attentionTasks = (tasks || []).filter(t => getDiffDays(t.due_date) <= 7);
+
+            let listHTML = '';
+            if (attentionTasks.length === 0) {
+                listHTML = `<div class="text-center py-12 text-slate-400"><i data-lucide="smile" class="w-12 h-12 mx-auto mb-3 opacity-50"></i><p>No tasks needing attention. Great job!</p></div>`;
+            } else {
+                attentionTasks.forEach(t => {
+                    const days = getDiffDays(t.due_date);
+                    const isOverdue = days < 0;
+                    listHTML += `
+                        <div class="bg-white border ${isOverdue ? 'border-red-200 bg-red-50/30' : 'border-yellow-200 bg-yellow-50/30'} rounded-xl p-3">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="min-w-0 flex-1">
+                                    <h4 class="font-medium text-sm text-slate-800">${t.title}</h4>
+                                    <p class="text-xs text-slate-500 mt-0.5">${t.projects?.name || 'No project'}</p>
+                                </div>
+                                <span class="text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${
+                                    isOverdue ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                                }">${isOverdue ? `${Math.abs(days)}d overdue` : `Due in ${days}d`}</span>
+                            </div>
+                            ${t.due_date ? `<p class="text-[10px] text-slate-400 mt-1">${formatDate(t.due_date)}</p>` : ''}
+                        </div>`;
+                });
+            }
+
+            return `
+                <div class="space-y-4 animate-fade-in">
+                    <h2 class="text-lg font-bold text-slate-800">Attention Summary</h2>
+                    <div class="flex gap-2 text-xs text-slate-500 mb-2">
+                        <span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full">≤ 7 Days: ${attentionTasks.filter(t => getDiffDays(t.due_date) >= 0).length}</span>
+                        <span class="px-2 py-0.5 bg-red-100 text-red-700 rounded-full">Overdue: ${attentionTasks.filter(t => getDiffDays(t.due_date) < 0).length}</span>
+                    </div>
+                    <div class="space-y-2">${listHTML}</div>
+                </div>`;
+        }
+
+        // ============================================
+        // DAILY REPORT
+        // ============================================
+        async function getReportHTML() {
+            const today = new Date().toISOString().split('T')[0];
+
+            const { data: projects } = await sb.from('projects').select('id, name').eq('status', 'active');
+            const { data: reports } = await sb.from('daily_reports')
+                .select('*, projects(name)')
+                .eq('username', currentUser.username)
+                .order('created_at', { ascending: false });
+
+            let reportsHTML = '';
+            if (reports && reports.length > 0) {
+                reports.forEach(r => {
+                    reportsHTML += `
+                        <div class="bg-white border border-slate-200 rounded-xl p-3">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <span class="text-xs font-medium text-slate-600">${r.projects?.name || 'General'}</span>
+                                    <p class="text-sm text-slate-800 mt-0.5">${r.content}</p>
+                                </div>
+                                <span class="text-[10px] text-slate-400 whitespace-nowrap">${formatDate(r.report_date)}</span>
                             </div>
                         </div>`;
                 });
-                listHTML += '</div>';
-            }
-
-            return `
-                <div class="animate-in fade-in duration-300 max-w-3xl">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg font-bold text-slate-800">Attention Summary</h2>
-                        <span class="bg-slate-200 text-slate-700 py-0.5 px-2 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                            ${attentionTasks.length} Issues
-                        </span>
-                    </div>
-                    ${listHTML}
-                </div>`;
-        }
-
-        // --- USER MANAGEMENT (Admin) ---
-        function getUsersHTML() {
-            if (currentUser.role !== 'admin') return '';
-            
-            let tbody = '';
-            users.forEach(u => {
-                tbody += `
-                    <tr class="hover:bg-slate-50 border-b border-slate-100">
-                        <td class="px-4 py-3 font-medium text-slate-800">${u.username}</td>
-                        <td class="px-4 py-3 capitalize text-slate-600">${u.role}</td>
-                        <td class="px-4 py-3">
-                            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${u.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
-                                ${u.status}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3 text-right space-x-1">
-                            ${u.status === 'pending' ? `
-                                <button onclick="actUser('${u.username}', 'approve')" class="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 shadow-sm">Approve</button>
-                            ` : ''}
-                            <button onclick="actUser('${u.username}', 'edit')" class="bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs hover:bg-slate-300 shadow-sm">Edit</button>
-                            <button onclick="actUser('${u.username}', 'delete')" class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs hover:bg-red-200 shadow-sm">Delete</button>
-                        </td>
-                    </tr>`;
-            });
-
-            return `
-                <div class="animate-in fade-in duration-300">
-                    <h2 class="text-lg font-bold text-slate-800 mb-4">User Management</h2>
-                    
-                    <!-- Admin Add User Form -->
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-4">
-                        <h3 class="text-xs font-bold text-slate-600 uppercase mb-2">Add New User</h3>
-                        <form onsubmit="actUser(null, 'add', event)" class="flex flex-col md:flex-row gap-2">
-                            <input type="text" id="new-u-name" required placeholder="Username" class="flex-1 px-3 py-1.5 border rounded text-xs outline-none focus:ring-1 focus:ring-[#00AEEF]">
-                            <input type="password" id="new-u-pass" required placeholder="Password" class="flex-1 px-3 py-1.5 border rounded text-xs outline-none focus:ring-1 focus:ring-[#00AEEF]">
-                            <select id="new-u-role" class="flex-1 px-3 py-1.5 border rounded text-xs outline-none bg-white">
-                                <option value="employee">Employee</option>
-                                <option value="admin">Admin</option>
-                            </select>
-                            <button type="submit" class="bg-[#00AEEF] text-white px-4 py-1.5 rounded hover:bg-[#0095cc] text-xs font-bold shadow-sm">Add</button>
-                        </form>
-                    </div>
-
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-xs min-w-[500px]">
-                                <thead class="bg-slate-50 border-b border-slate-200">
-                                    <tr>
-                                        <th class="px-4 py-3 font-semibold text-slate-600">Username</th>
-                                        <th class="px-4 py-3 font-semibold text-slate-600">Role</th>
-                                        <th class="px-4 py-3 font-semibold text-slate-600">Status</th>
-                                        <th class="px-4 py-3 font-semibold text-slate-600 text-right">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>${tbody}</tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>`;
-        }
-
-        function actUser(username, action, e) {
-            if(e) e.preventDefault();
-            if(action === 'approve') {
-                const u = users.find(x => x.username === username);
-                if(u) u.status = 'approved';
-                showToast(`User ${username} approved.`);
-            } else if (action === 'delete') {
-                if(username === 'admin') return alert("Cannot delete the default admin account.");
-                if(confirm(`Are you sure you want to delete ${username}?`)) {
-                    users = users.filter(x => x.username !== username);
-                    showToast(`User ${username} deleted.`);
-                }
-            } else if (action === 'edit') {
-                if(username === 'admin') return alert("Cannot edit the default admin account from here.");
-                const newRole = prompt(`Edit role for ${username}. Type 'admin' or 'employee':`, "employee");
-                if(newRole === 'admin' || newRole === 'employee') {
-                    const u = users.find(x => x.username === username);
-                    if(u) u.role = newRole;
-                    showToast(`User ${username} updated to ${newRole}.`);
-                } else if(newRole !== null) {
-                    alert("Invalid role entered.");
-                }
-            } else if (action === 'add') {
-                const n = document.getElementById('new-u-name').value.trim();
-                const p = document.getElementById('new-u-pass').value.trim();
-                const r = document.getElementById('new-u-role').value;
-                if(users.find(x => x.username === n)) return alert("Username already exists.");
-                users.push({ username: n, password: p, role: r, status: 'approved' });
-                showToast(`User ${n} added successfully.`);
-            }
-            renderContent();
-        }
-
-        // --- PROJECTS & TIMELINE ---
-        function getProjectsHTML() {
-            if (!selectedProjectId) {
-                // List View
-                let listHTML = '';
-                if(projects.length === 0) {
-                    listHTML = `<div class="text-center py-10 bg-white rounded-xl border border-dashed border-slate-300 text-slate-500 text-sm">No projects created yet. Create one to start adding timelines.</div>`;
-                } else {
-                    listHTML = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">';
-                    projects.forEach(p => {
-                        const tCount = tasks.filter(t => t.projectId === p.id).length;
-                        listHTML += `
-                            <div onclick="openProject(${p.id})" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md cursor-pointer transition-all border-l-4 border-l-[#00AEEF]">
-                                <h3 class="font-bold text-sm mb-1 text-slate-800 break-words">${p.name}</h3>
-                                <p class="text-[10px] text-slate-500">Created by: ${p.createdBy}</p>
-                                <p class="text-[10px] text-slate-500 mt-0.5">Tasks: ${tCount}</p>
-                            </div>`;
-                    });
-                    listHTML += '</div>';
-                }
-
-                return `
-                    <div class="animate-in fade-in duration-300">
-                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
-                            <h2 class="text-lg font-bold text-slate-800">Projects</h2>
-                            <form onsubmit="actProject('create', event)" class="flex w-full md:w-auto gap-2">
-                                <input type="text" id="new-p-name" required placeholder="New Project Name..." class="px-3 py-1.5 border rounded-lg focus:ring-2 focus:ring-[#00AEEF] outline-none flex-1 min-w-[180px] text-sm"/>
-                                <button type="submit" class="bg-[#00AEEF] text-white px-3 py-1.5 rounded-lg hover:bg-[#0095cc] flex items-center justify-center font-medium shadow-sm text-sm">
-                                    <i data-lucide="plus" class="w-4 h-4 md:mr-1"></i><span class="hidden md:inline">Create</span>
-                                </button>
-                            </form>
-                        </div>
-                        ${listHTML}
-                    </div>`;
             } else {
-                // Timeline View
-                const proj = projects.find(p => p.id === selectedProjectId);
-                const pTasks = tasks.filter(t => t.projectId === selectedProjectId);
-                
-                let tHTML = '';
-                if(pTasks.length === 0) {
-                    tHTML = `<div class="p-6 text-center text-slate-500 bg-slate-50/50 text-xs">Timeline is blank. Add tasks below.</div>`;
-                } else {
-                    pTasks.forEach(task => {
-                        const status = getTaskStatusObj(task);
-                        const isExpanded = expandedTaskId === task.id;
-                        tHTML += `
-                            <div class="p-3 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0">
-                                <div class="flex items-start gap-2">
-                                    <input type="checkbox" ${task.isComplete ? 'checked' : ''} onchange="actTask('toggle', ${task.id})" class="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#00AEEF] cursor-pointer shrink-0"/>
-                                    <div class="flex-1 space-y-1.5">
-                                        <div>
-                                            <div onclick="expandTask(${task.id})" class="text-sm font-bold text-slate-800 cursor-pointer whitespace-pre-wrap ${!isExpanded ? 'line-clamp-4' : ''} ${task.isComplete ? 'line-through text-slate-400' : ''}">
-                                                ${task.name}
-                                            </div>
-                                            <div class="text-[10px] text-slate-500 mt-0.5 font-medium">
-                                                ${task.startDate || 'N/A'} — ${task.dueDate || 'N/A'}
-                                            </div>
-                                        </div>
-                                        <div class="flex flex-col md:flex-row gap-1.5 md:items-center">
-                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border w-fit ${status.color}">
-                                                <i data-lucide="${status.icon}" class="w-3 h-3 mr-0.5"></i> ${status.text}
-                                            </span>
-                                            <input type="text" value="${task.remark}" onchange="actTask('remark', ${task.id}, this.value)" 
-                                                ${currentUser.role !== 'admin' ? 'disabled' : ''}
-                                                placeholder="${currentUser.role === 'admin' ? 'Admin remarks (type here)...' : 'No remarks'}"
-                                                class="flex-1 px-2 py-1 border rounded text-[10px] transition-colors ${currentUser.role === 'admin' ? 'bg-sky-50 border-sky-200 focus:ring-1 focus:ring-sky-400 text-sky-900' : 'bg-transparent border-transparent text-slate-500 px-0'}"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>`;
-                    });
-                }
-
-                return `
-                    <div class="animate-in fade-in duration-300">
-                        <div class="flex items-center mb-4">
-                            <button onclick="openProject(null)" class="mr-3 p-1.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600">
-                                <i data-lucide="chevron-left" class="w-4 h-4"></i>
-                            </button>
-                            <div class="flex-1 overflow-hidden">
-                                <h2 class="text-base md:text-lg font-bold text-slate-800 truncate">${proj.name}</h2>
-                                <p class="text-xs text-slate-500">Timeline & Tasks</p>
-                            </div>
-                        </div>
-
-                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
-                            ${tHTML}
-                            <div class="p-3 bg-slate-50 border-t border-slate-200 space-y-2">
-                                <textarea id="new-t-name" rows="2" placeholder="New Task Description..." class="w-full px-2.5 py-1.5 border rounded-lg focus:ring-2 focus:ring-[#00AEEF] outline-none resize-y text-sm"></textarea>
-                                <div class="flex gap-2">
-                                    <div class="flex-1">
-                                        <label class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Start Date</label>
-                                        <input type="date" id="new-t-start" class="w-full px-2 py-1 border rounded text-[10px] text-slate-600 outline-none focus:border-[#00AEEF]" />
-                                    </div>
-                                    <div class="flex-1">
-                                        <label class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">End Date</label>
-                                        <input type="date" id="new-t-end" class="w-full px-2 py-1 border rounded text-[10px] text-slate-600 outline-none focus:border-[#00AEEF]" />
-                                    </div>
-                                </div>
-                                <button onclick="actTask('add')" class="bg-[#00AEEF] text-white px-3 py-1.5 rounded-lg hover:bg-[#0095cc] w-full font-medium shadow-sm text-xs mt-1">
-                                    + Add Task
-                                </button>
-                            </div>
-                        </div>
-                    </div>`;
+                reportsHTML = `<div class="text-center py-8 text-slate-400"><i data-lucide="file-text" class="w-8 h-8 mx-auto mb-2 opacity-50"></i><p class="text-xs">No reports yet.</p></div>`;
             }
-        }
-
-        function actProject(action, e) {
-            e.preventDefault();
-            const input = document.getElementById('new-p-name');
-            const val = input.value.trim();
-            if(!val) return;
-            projects.push({ id: Date.now(), name: val, createdBy: currentUser.username });
-            input.value = '';
-            showToast("Project created.");
-            renderContent();
-        }
-
-        function openProject(id) {
-            selectedProjectId = id;
-            expandedTaskId = null;
-            renderContent();
-        }
-
-        function expandTask(id) {
-            expandedTaskId = expandedTaskId === id ? null : id;
-            renderContent();
-        }
-
-        function actTask(action, id, val) {
-            if (action === 'add') {
-                const n = document.getElementById('new-t-name').value.trim();
-                const s = document.getElementById('new-t-start').value;
-                const e = document.getElementById('new-t-end').value;
-                if(!n || !s || !e) return alert("Please fill description and both dates.");
-                tasks.push({ id: Date.now(), projectId: selectedProjectId, name: n, startDate: s, dueDate: e, isComplete: false, remark: '' });
-                renderContent();
-            } else if (action === 'toggle') {
-                const t = tasks.find(x => x.id === id);
-                if(t) t.isComplete = !t.isComplete;
-                showToast("Task status updated.");
-                renderContent();
-            } else if (action === 'remark') {
-                const t = tasks.find(x => x.id === id);
-                if(t) t.remark = val;
-            }
-        }
-
-        // --- DAILY REPORT ---
-        function getReportHTML() {
-            let pOptions = '<option value="">-- Select Project --</option>';
-            projects.forEach(p => pOptions += `<option value="${p.id}">${p.name}</option>`);
 
             return `
-                <div class="max-w-xl animate-in fade-in duration-300">
-                    <h2 class="text-lg font-bold text-slate-800 mb-4">Daily Activity Report</h2>
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 md:p-6">
-                        <form onsubmit="submitReport(event)" class="space-y-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Project Selector</label>
-                                <select required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00AEEF] outline-none bg-white text-sm">
-                                    ${pOptions}
-                                </select>
+                <div class="space-y-4 animate-fade-in">
+                    <h2 class="text-lg font-bold text-slate-800">Daily Report</h2>
+
+                    <form onsubmit="submitReport(event)" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
+                        <h3 class="text-sm font-semibold text-slate-700">New Report</h3>
+                        <select id="report-project" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00AEEF] outline-none">
+                            <option value="">General (no project)</option>
+                            ${projects ? projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('') : ''}
+                        </select>
+                        <textarea id="report-content" required rows="4" placeholder="What did you work on today?" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00AEEF] outline-none"></textarea>
+                        <button type="submit" class="bg-[#00AEEF] hover:bg-[#0095cc] text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors">
+                            <i data-lucide="send" class="w-3 h-3 inline mr-0.5"></i> Submit Report
+                        </button>
+                    </form>
+
+                    <div class="space-y-2">
+                        <h3 class="text-sm font-semibold text-slate-700">Previous Reports</h3>
+                        ${reportsHTML}
+                    </div>
+                </div>`;
+        }
+
+        async function submitReport(e) {
+            e.preventDefault();
+            const content = document.getElementById('report-content').value.trim();
+            const projectId = document.getElementById('report-project').value;
+
+            showLoading('Submitting report...');
+            try {
+                await supabaseInsert('daily_reports', [{
+                    username: currentUser.username,
+                    project_id: projectId || null,
+                    content,
+                    report_date: new Date().toISOString().split('T')[0]
+                }]);
+                document.getElementById('report-content').value = '';
+                showToast('Report submitted!');
+                await renderContent();
+            } catch (err) {
+                showToast('Error: ' + err.message, true);
+            }
+            hideLoading();
+        }
+
+        // ============================================
+        // PHOTOS
+        // ============================================
+        async function getPhotosHTML() {
+            const { data: projects } = await sb.from('projects').select('id, name');
+            const { data: photos } = await sb.from('photos')
+                .select('*, projects(name)')
+                .order('created_at', { ascending: false });
+
+            let photosHTML = '';
+            if (photos && photos.length > 0) {
+                photos.forEach(p => {
+                    photosHTML += `
+                        <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                            <img src="${p.url}" alt="${p.filename}" class="w-full h-40 object-cover" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><rect fill=%22%23eee%22 width=%22100%22 height=%22100%22/><text fill=%22%23999%22 x=%2220%22 y=%2250%22 font-size=%2210%22>No Image</text></svg>'">
+                            <div class="p-2">
+                                <p class="text-xs font-medium text-slate-700">${p.filename || 'Photo'}</p>
+                                <p class="text-[10px] text-slate-400">${p.projects?.name || 'General'} · ${formatDate(p.created_at)}</p>
                             </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Location</label>
-                                <input type="text" required placeholder="e.g. Factory Site A" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00AEEF] outline-none text-sm" />
+                        </div>`;
+                });
+            } else {
+                photosHTML = `<div class="text-center py-12 text-slate-400 col-span-full"><i data-lucide="image" class="w-12 h-12 mx-auto mb-3 opacity-50"></i><p>No photos uploaded yet.</p></div>`;
+            }
+
+            return `
+                <div class="space-y-4 animate-fade-in">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-bold text-slate-800">Photos</h2>
+                        <button onclick="showPhotoUploadModal()" class="bg-[#00AEEF] hover:bg-[#0095cc] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                            <i data-lucide="upload" class="w-3 h-3 inline mr-0.5"></i> Upload Photo
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        ${photosHTML}
+                    </div>
+                </div>
+
+                <!-- Upload Modal -->
+                <div id="photo-upload-modal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 hidden p-4" onclick="if(event.target===this)closePhotoUploadModal()">
+                    <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6" onclick="event.stopPropagation()">
+                        <h3 class="font-bold text-slate-800 mb-4">Upload Photo</h3>
+                        <form onsubmit="uploadPhoto(event)" class="space-y-3">
+                            <select id="photo-project" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00AEEF] outline-none">
+                                <option value="">General (no project)</option>
+                                ${projects ? projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('') : ''}
+                            </select>
+                            <input type="file" id="photo-file" accept="image/*" required
+                                   class="w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#00AEEF] file:text-white hover:file:bg-[#0095cc]">
+                            <div id="upload-preview" class="hidden mt-2">
+                                <img id="preview-img" class="w-full h-40 object-cover rounded-lg border">
                             </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Work Done Today</label>
-                                <textarea required rows="3" placeholder="Describe progress..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00AEEF] outline-none text-sm"></textarea>
+                            <div class="flex gap-2 justify-end">
+                                <button type="button" onclick="closePhotoUploadModal()" class="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                                <button type="submit" id="upload-btn" class="px-4 py-1.5 bg-[#00AEEF] text-white text-xs font-semibold rounded-lg hover:bg-[#0095cc]">Upload</button>
                             </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Photo Evidence</label>
-                                <input type="file" accept="image/*" class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-sm" />
-                            </div>
-                            <button type="submit" class="w-full flex justify-center items-center bg-[#00AEEF] hover:bg-[#0095cc] text-white font-bold py-2 px-4 rounded-lg shadow-sm text-sm">
-                                <i data-lucide="send" class="w-4 h-4 mr-2"></i> Submit to Boss
-                            </button>
                         </form>
                     </div>
                 </div>`;
         }
 
-        function submitReport(e) {
-            e.preventDefault();
-            showToast("Report and photos sent to Admin successfully!");
-            e.target.reset();
+        function showPhotoUploadModal() {
+            document.getElementById('photo-upload-modal').classList.remove('hidden');
+        }
+        function closePhotoUploadModal() {
+            document.getElementById('photo-upload-modal').classList.add('hidden');
+            document.getElementById('photo-file').value = '';
+            document.getElementById('upload-preview').classList.add('hidden');
         }
 
-        // Init icons on load
-        lucide.createIcons();
+        // Preview on file select
+        document.addEventListener('change', function(e) {
+            if (e.target.id === 'photo-file') {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(ev) {
+                        document.getElementById('preview-img').src = ev.target.result;
+                        document.getElementById('upload-preview').classList.remove('hidden');
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+        });
+
+        async function uploadPhoto(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('photo-file');
+            const projectId = document.getElementById('photo-project').value;
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            submitBtn = document.getElementById('upload-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Uploading...';
+
+            showLoading('Uploading photo...');
+            try {
+                // Upload to Supabase Storage
+                const fileName = `${Date.now()}_${file.name}`;
+                const { data: uploadData, error: uploadError } = await sb.storage
+                    .from('flexpack-photos')
+                    .upload(fileName, file, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
+
+                if (uploadError) throw uploadError;
+
+                // Get public URL
+                const { data: { publicUrl } } = sb.storage
+                    .from('flexpack-photos')
+                    .getPublicUrl(fileName);
+
+                // Save metadata to photos table
+                await supabaseInsert('photos', [{
+                    url: publicUrl,
+                    filename: file.name,
+                    project_id: projectId || null,
+                    uploaded_by: currentUser.username
+                }]);
+
+                closePhotoUploadModal();
+                showToast('Photo uploaded!');
+                await renderContent();
+            } catch (err) {
+                showToast('Upload error: ' + err.message, true);
+            }
+            submitBtn.disabled = false;
+            submitBtn.innerText = 'Upload';
+            hideLoading();
+        }
+
+        // ============================================
+        // USER MANAGEMENT (Admin only)
+        // ============================================
+        async function getUsersHTML() {
+            if (!currentUser || currentUser.role !== 'admin') return '<p class="text-red-500">Access denied.</p>';
+
+            const { data: users } = await sb.from('users').select('*').order('created_at', { ascending: false });
+
+            let listHTML = '';
+            if (users) {
+                users.forEach(u => {
+                    listHTML += `
+                        <div class="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between">
+                            <div>
+                                <span class="font-medium text-sm text-slate-800">${u.username}</span>
+                                <span class="text-xs ml-2 px-1.5 py-0.5 rounded-full ${
+                                    u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'
+                                }">${u.role}</span>
+                                <span class="text-xs ml-1 px-1.5 py-0.5 rounded-full ${
+                                    u.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                }">${u.status}</span>
+                            </div>
+                            <div class="flex gap-1">
+                                ${u.status === 'pending' ? `
+                                    <button onclick="approveUser(${u.id})" class="text-xs px-2 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600">Approve</button>
+                                    <button onclick="rejectUser(${u.id})" class="text-xs px-2 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600">Reject</button>
+                                ` : ''}
+                            </div>
+                        </div>`;
+                });
+            }
+
+            return `
+                <div class="space-y-4 animate-fade-in">
+                    <h2 class="text-lg font-bold text-slate-800">User Management</h2>
+                    <div class="space-y-2">${listHTML}</div>
+                </div>`;
+        }
+
+        async function approveUser(userId) {
+            try {
+                await supabaseUpdate('users', { id: userId }, { status: 'approved' });
+                showToast('User approved!');
+                await renderContent();
+            } catch (err) {
+                showToast('Error: ' + err.message, true);
+            }
+        }
+
+        async function rejectUser(userId) {
+            if (!confirm('Reject and delete this user?')) return;
+            try {
+                await supabaseDelete('users', { id: userId });
+                showToast('User rejected');
+                await renderContent();
+            } catch (err) {
+                showToast('Error: ' + err.message, true);
+            }
+        }
     </script>
 </body>
 </html>
