@@ -16,18 +16,121 @@
         .line-clamp-4 { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
         .animate-fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ===== LOGIN PAGE REDESIGN ===== */
+        .auth-bg-img {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%;
+            object-fit: cover; object-position: center;
+        }
+        .auth-overlay {
+            position: absolute; inset: 0;
+            background: linear-gradient(135deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.58) 50%, rgba(0,0,0,0.72) 100%);
+        }
+        .auth-card {
+            position: relative; z-index: 10;
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+            border-radius: 1rem;
+            padding: 2.5rem 2rem;
+            width: 100%; max-width: 24rem;
+            text-align: center;
+            transition: transform 0.2s ease;
+        }
+        .auth-card:hover {
+            transform: translateY(-2px);
+        }
+        .auth-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 0.75rem;
+            color: #fff;
+            font-size: 0.875rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        .auth-input::placeholder {
+            color: rgba(255,255,255,0.35);
+        }
+        .auth-input:focus {
+            border-color: #00AEEF;
+            background: rgba(255,255,255,0.1);
+            box-shadow: 0 0 0 3px rgba(0,174,239,0.15);
+        }
+        .auth-submit {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: linear-gradient(135deg, #00AEEF 0%, #0095cc 100%);
+            border: none;
+            border-radius: 0.75rem;
+            color: #fff;
+            font-weight: 700;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .auth-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 25px rgba(0,174,239,0.35);
+        }
+        .auth-submit:active {
+            transform: translateY(0);
+        }
+        .auth-link {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.75rem;
+            transition: color 0.2s;
+        }
+        .auth-link button {
+            color: #00AEEF;
+            font-weight: 600;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+        .auth-link button:hover {
+            color: #33c4f5;
+        }
+        .auth-title-text {
+            color: rgba(255,255,255,0.45);
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 1.5rem;
+        }
+        .auth-logo-wrap {
+            display: flex; justify-content: center; margin-bottom: 0.75rem;
+        }
+        .auth-logo-wrap img {
+            height: 3.5rem;
+            width: auto;
+            object-fit: contain;
+            filter: brightness(1.05);
+        }
+        /* subtle decorative line under logo */
+        .auth-divider {
+            width: 3rem; height: 2px;
+            background: linear-gradient(90deg, transparent, #00AEEF, transparent);
+            margin: 0 auto 1.25rem;
+            border-radius: 2px;
+        }
     </style>
 </head>
-<body class="bg-slate-50 font-sans text-slate-800 overflow-hidden h-screen flex flex-col md:flex-row">
+<body class="bg-black font-sans text-slate-800 overflow-hidden h-screen flex flex-col md:flex-row">
 
     <!-- Loading Spinner -->
-    <div id="loading-overlay" class="fixed inset-0 bg-white/80 flex items-center justify-center z-50 hidden">
+    <div id="loading-overlay" class="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] hidden">
         <div class="flex flex-col items-center gap-3">
             <svg class="animate-spin h-8 w-8 text-[#00AEEF]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <span class="text-sm text-slate-500" id="loading-text">Loading...</span>
+            <span class="text-sm text-white/80" id="loading-text">Loading...</span>
         </div>
     </div>
 
@@ -38,23 +141,35 @@
     </div>
 
     <!-- ================= 1. LOGIN / REGISTER VIEW ================= -->
-    <div id="auth-view" class="absolute inset-0 flex items-center justify-center bg-slate-100 p-4 z-50">
-        <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg w-full max-w-sm text-center">
-            <div class="flex justify-center mb-4">
-                <img src="https://i.imgur.com/cHHfOpw.png" alt="FlexPack Logo" class="h-12 w-auto object-contain" onerror="this.onerror=null; this.outerHTML='<div class=\\'font-extrabold text-3xl\\'><span class=\\'text-[#00AEEF]\\'>Flex</span><span class=\\'text-gray-400\\'>Pack</span></div>'"/>
-            </div>
-            <p id="auth-title" class="text-slate-500 mb-6 text-xs">System Login</p>
+    <div id="auth-view" class="absolute inset-0 flex items-center justify-center p-4 z-50 overflow-hidden">
+        <!-- Background Image -->
+        <img
+            src="https://upload.wikimedia.org/wikipedia/commons/2/24/Plastic_wrap_packaging_machine.jpg"
+            alt=""
+            class="auth-bg-img"
+            aria-hidden="true"
+        />
+        <!-- Dark Overlay -->
+        <div class="auth-overlay"></div>
 
-            <form id="auth-form" onsubmit="handleAuth(event)" class="space-y-3">
-                <input type="text" id="auth-user" required placeholder="Username" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#00AEEF] outline-none text-sm"/>
-                <input type="password" id="auth-pass" required placeholder="Password" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#00AEEF] outline-none text-sm"/>
-                <button type="submit" id="auth-submit-btn" class="w-full bg-[#00AEEF] hover:bg-[#0095cc] text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">
+        <!-- Login Card -->
+        <div class="auth-card">
+            <div class="auth-logo-wrap">
+                <img src="https://i.imgur.com/cHHfOpw.png" alt="FlexPack Logo" onerror="this.onerror=null; this.outerHTML='<div class=\\'font-extrabold text-2xl\\'><span class=\\'text-[#00AEEF]\\'>Flex</span><span class=\\'text-white/60\\'>Pack</span></div>'"/>
+            </div>
+            <div class="auth-divider"></div>
+            <p id="auth-title" class="auth-title-text">System Login</p>
+
+            <form id="auth-form" onsubmit="handleAuth(event)" class="space-y-4">
+                <input type="text" id="auth-user" required placeholder="Username" class="auth-input" autocomplete="username"/>
+                <input type="password" id="auth-pass" required placeholder="Password" class="auth-input" autocomplete="current-password"/>
+                <button type="submit" id="auth-submit-btn" class="auth-submit">
                     Login
                 </button>
             </form>
 
-            <div class="mt-4 text-xs text-slate-500">
-                <p id="auth-toggle-text">New employee? <button type="button" onclick="toggleAuthMode()" class="text-[#00AEEF] font-semibold">Register here</button></p>
+            <div class="mt-5 auth-link">
+                <p id="auth-toggle-text">New employee? <button type="button" onclick="toggleAuthMode()">Register here</button></p>
             </div>
         </div>
     </div>
