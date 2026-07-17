@@ -655,9 +655,9 @@
                 .select('id, is_complete, due_date, projects!inner(created_by)')
                 .eq('projects.created_by', currentUser.username);
 
-            const projectCount = projects.count || 0;
-            const allTasks = tasks.data || [];
-            const pendingUsers = allUsers.data ? allUsers.data.length : 0;
+            const projectCount = projects?.count || 0;
+            const allTasks = tasks || [];
+            let pendingUsers = 0;
 
             let redCount = 0, yellowCount = 0;
             allTasks.forEach(t => {
